@@ -120,9 +120,13 @@ def sync_repo(cfg):
 
 
 def read_manifest(repo, cfg):
+    """优先读 manifest；ECS 上通常没有 manifest 文件，则回退到 bundle 自带的 trade_date。"""
     for p in (cfg.get('local_manifest_path') or '', os.path.join(repo, cfg['manifest_rel'])):
         if p and os.path.exists(p):
             return json.load(open(p, encoding='utf-8'))
+    b = read_bundle(repo, cfg)
+    if b and b.get('trade_date'):
+        return {'trade_date': b['trade_date'], '_source': 'bundle'}
     return None
 
 
