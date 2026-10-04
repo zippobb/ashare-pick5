@@ -74,11 +74,21 @@ def render_head(td, market, gen_at):
     prev = market.get('previous_trade_date')
     nxt = market.get('next_trade_date')
     d = datetime_fmt(td)
+    chips = [
+        ('交易日', '%s（%s）' % (d, weekday(td))),
+        ('trade_date', td),
+        ('生成时间', '%s CST' % (gen_at or '-')),
+        ('上一交易日', prev or '-'),
+        ('下一交易日', nxt or '-'),
+    ]
+    chip_html = ''.join(
+        '<span class="chip%s">%s <b>%s</b></span>' % (' ok' if k == 'trade_date' else '', esc(k), esc(v))
+        for k, v in chips)
     return (
-        '<h1>A股短线选股看板 <span class="sub">· %s（%s）</span></h1>\n'
-        '<div class="sub">数据源：stock-key10-bridge <span class="mono">trade_date=%s</span>'
-        '（manifest 已核对，为当日最新交付） · 生成时间 %s CST · 上一交易日 %s，下一交易日 %s</div>'
-        % (d, weekday(td), esc(td), esc(gen_at), esc(prev or '-'), esc(nxt or '-')))
+        '<div class="hero">\n'
+        '<h1>A股短线选股看板<span class="date">%s（%s）</span></h1>\n'
+        '<div class="sub">数据源：ECS 线上管线 · stock-key10 bundle · 已核对为当日最新交付</div>\n'
+        '<div class="hero-meta">%s</div>\n</div>\n' % (d, weekday(td), chip_html))
 
 
 def datetime_fmt(td):
