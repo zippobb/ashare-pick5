@@ -139,6 +139,33 @@ curl -sO https://raw.githubusercontent.com/zippobb/ashare-pick5/main/publish_pag
 export GH_TOKEN=<填入你的 github_pat_xxx>
 python3 publish_pages.py --dir <当日数据目录> --html index.html --date <trade_date>
 ```
+**两个路径约束（踩过会卡住，务必照做）**
+
+| 约束 | 原因 |
+|---|---|
+| `template.css` 必须和 `render_dashboard.py` 在**同一个目录** | 渲染器按自身脚本目录拼 css 路径 |
+| `narrative.json` 必须放在 `--dir` 指向的**数据目录里** | `publish_pages.py` 去 `<dir>/narrative.json` 找它留档 |
+
+完整示例（`TD` 用实际 trade_date，不要写占位符）：
+
+```bash
+RAW=https://raw.githubusercontent.com/zippobb/ashare-pick5/main
+TD=$(curl -s $RAW/latest.json | python3 -c "import json,sys;print(json.load(sys.stdin)['trade_date'])")
+echo "trade_date=$TD"        # 不等于今天就中止
+
+mkdir -p work && cd work
+curl -sO $RAW/render/render_dashboard.py
+curl -sO $RAW/render/template.css     # 与上面同目录
+curl -sO $RAW/publish_pages.py
+mkdir -p daily/$TD && cd daily/$TD
+for f in picks scored market dropped verify; do curl -sO $RAW/daily/$TD/$f.json; done
+cd ..
+# 在这里写 daily/$TD/narrative.json
+python3 render_dashboard.py --data daily/$TD --narrative daily/$TD/narrative.json --out index.html
+export GH_TOKEN=github_pat_xxx
+python3 publish_pages.py --dir daily/$TD --html index.html --date $TD
+```
+
 脚本会自动处理已有文件的 sha、写入 `index.html` 与 `daily/<trade_date>/narrative.json`，
 commit message 固定为 `dashboard <trade_date>`，输出 `PUSHED` 即成功。
 （若你确认云端有 git，也可以照旧用 git clone + commit + push，效果一样。）
