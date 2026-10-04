@@ -1,0 +1,20 @@
+{
+  "repo_url": "",
+  "repo_dir": "repo",
+  "local_bundle_path": "/root/ssm-out/key10_bundle_latest.json",
+  "local_manifest_path": "/root/ssm-out/manifest.json",
+  "out_dir": "out",
+  "bundle_rel": "latest/key10_bundle_latest.json",
+  "manifest_rel": "latest/manifest.json",
+  "wait_manifest_minutes": 90,
+  "wait_interval_seconds": 300,
+  "llm": {
+    "enabled": true,
+    "provider": "deepseek",
+    "base_url": "https://api.deepseek.com/v1",
+    "model": "deepseek-chat",
+    "api_key_env": "DEEPSEEK_API_KEY",
+    "timeout": 180,
+    "max_tokens": 2500
+  }
+}
