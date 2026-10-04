@@ -497,7 +497,7 @@ def main():
     else:
         log('FORCE_DATE=%s，跳过休市校验' % target)
 
-    use_local = bool(cfg.get('local_manifest_path') and cfg.get('local_bundle_path'))
+    use_local = bool(cfg.get('local_bundle_path'))
     if use_local:
         log('走 ECS 本地源数据: %s' % cfg['local_bundle_path'])
         repo = abspath(cfg['repo_dir'])
