@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A股短线选股看板 · 2026-09-30</title>
 <style>
+:root{
   --up:#d32029; --down:#0f8a4a; --flat:#6b7280;
   --bg:#f4f6f8; --card:#ffffff; --ink:#14181f; --ink2:#3b4250; --muted:#6b7280;
   --line:#e3e7ec; --line2:#eef1f5;
@@ -17,6 +18,22 @@ body{margin:0;background:var(--bg);color:var(--ink);
   font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1080px;margin:0 auto;padding:20px 16px 60px}
 h1{font-size:22px;margin:0 0 4px;letter-spacing:-.2px}
+
+.hero{background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 52%,#2f6bf0 100%);
+  border-radius:14px;padding:17px 20px 15px;margin:2px 0 18px;color:#fff;
+  box-shadow:0 6px 18px rgba(29,78,216,.18)}
+.hero h1{color:#fff;margin:0 0 5px;font-size:22px;letter-spacing:-.2px;
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.hero .date{display:inline-block;background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.30);border-radius:20px;padding:2px 11px;
+  font-size:12.5px;font-weight:600;letter-spacing:0}
+.hero .sub{color:rgba(255,255,255,.80);font-size:12.5px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.hero-meta .chip{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.20);
+  border-radius:8px;padding:3px 10px;font-size:11.5px;color:rgba(255,255,255,.88)}
+.hero-meta .chip b{color:#fff;font-weight:600}
+.hero-meta .chip.ok{background:rgba(16,185,129,.22);border-color:rgba(110,231,183,.45)}
+.hero-meta .chip.ok b{color:#d1fae5}
 h2{font-size:17px;margin:32px 0 12px;padding-left:10px;border-left:4px solid var(--accent)}
 h3{font-size:15px;margin:0 0 8px}
 .sub{color:var(--muted);font-size:12.5px}
@@ -97,8 +114,12 @@ ul.tight{margin:6px 0 0;padding-left:19px} ul.tight li{margin:3px 0;font-size:13
 </head>
 <body>
 <div class="wrap">
-<h1>A股短线选股看板 <span class="sub">· 2026-09-30（周三）</span></h1>
-<div class="sub">数据源：stock-key10-bridge <span class="mono">trade_date=20260930</span>（manifest 已核对，为当日最新交付） · 生成时间 2026-09-30 19:30 CST · 上一交易日 20260929，下一交易日 20261008</div>
+<div class="hero">
+<h1>A股短线选股看板<span class="date">2026-09-30（周三）</span></h1>
+<div class="sub">数据源：ECS 线上管线 · stock-key10 bundle · 已核对为当日最新交付</div>
+<div class="hero-meta"><span class="chip">交易日 <b>2026-09-30（周三）</b></span><span class="chip ok">trade_date <b>20260930</b></span><span class="chip">生成时间 <b>2026-09-30 19:30 CST</b></span><span class="chip">上一交易日 <b>20260929</b></span><span class="chip">下一交易日 <b>20261008</b></span></div>
+</div>
+
 <div class="alert"><div class="t">⚠ 市场警戒：震荡 / 防守 —— 不接高位飞刀</div><ul><li>三大指数<b>全部位于 MA20 下方</b>（趋势均判定为"下跌"），5 日跌幅：上证 −2.78%、深证 −6.09%、创业板 −7.78%。</li><li>全市场<b>站上 MA20 比例仅 32.26%</b>，个股当日<b>涨跌幅中位数 −0.09%</b>，跌家数（2824）多于涨家数（2567）——今日上证翻红属缩量弱反弹，不是趋势反转。</li><li>本期执行硬规则：<b>扣非/归母 &lt; 60% 视为利润失真，一票否决或大幅降权</b>；<b>题材标签"待核验"者不得作为核心买入理由</b>；<b>距 MA20 ≥ 2.0 ATR 一律按高位飞刀处理</b>。</li><li>成交额门槛已取消（不再作为剔除条件），流动性仍单列于"第五节"供自查——用户资金量不影响股价，此项不参与打分。</li></ul></div>
 <h2>一、市场快照</h2>
 <div class="snap"><div class="sbox"><div class="k">上证综指</div><div class="v mono up">3842.19</div><div class="d mono">MA20 3905.64 · 5日 <span class="down">-2.78%</span> · 下跌</div></div><div class="sbox"><div class="k">深证成指</div><div class="v mono down">12887.62</div><div class="d mono">MA20 13463.86 · 5日 <span class="down">-6.09%</span> · 下跌</div></div><div class="sbox"><div class="k">创业板指</div><div class="v mono down">3135.28</div><div class="d mono">MA20 3304.34 · 5日 <span class="down">-7.78%</span> · 下跌</div></div><div class="sbox"><div class="k">涨 / 跌 / 平</div><div class="v mono"><span class="up">2567</span> / <span class="down">2824</span> / <span class="flat">170</span></div><div class="d mono">上涨占比 46.16%</div></div><div class="sbox"><div class="k">个股当日中位数</div><div class="v mono down">-0.09%</div><div class="d">赚钱效应为负</div></div><div class="sbox"><div class="k">站上 MA20 比例</div><div class="v mono down">32.26%</div><div class="d">不足半数</div></div><div class="sbox"><div class="k">两市成交额</div><div class="v mono">14501 亿</div><div class="d">市场量能</div></div><div class="sbox"><div class="k">市场阶段 / 姿态</div><div class="v" style="color:var(--warn)">震荡 / 防守</div><div class="d">仓位上限 100%，单票可至 50%+</div></div></div>
