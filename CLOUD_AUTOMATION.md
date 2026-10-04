@@ -20,14 +20,42 @@ ECS 侧：`/opt/ashare-pick5`，systemd timer `ashare-pick5.timer`，周一至�
 
 ## 1. 需要你准备的一件事：写入用的 GitHub Token
 
-云端要把渲染好的 `index.html` 推回仓库，必须有一枚 token。**推荐 fine-grained PAT**（最小权限，随时可删）：
+云端要把渲染好的 `index.html` 推回仓库，必须有一枚 token。**用 fine-grained PAT**（最小权限，随时可删）。
 
-- https://github.com/settings/personal-access-tokens → Generate new token
-- Resource owner: `zippobb` → **Only select repositories: `ashare-pick5`**
-- Permissions → Contents: **Read and write**（只勾这一项）
-- 生成后把 `github_pat_xxx` 填到第 2 节 prompt 的 `GH_TOKEN=` 处
+### 一键预填链接（推荐，官方支持 URL 参数预填）
 
-> 不要用本机 `~/.git-credentials` 里那枚 `gho_` classic token 写进云端 prompt——它是全作用域的，泄露即等于账号权限外泄。
+直接点这个，名称/描述/所有者/有效期/权限都帮你填好了：
+
+```
+https://github.com/settings/personal-access-tokens/new?name=pick5-cloud-publish&description=Push+dashboard+index.html+to+ashare-pick5&target_name=zippobb&expires_in=365&contents=write
+```
+
+进去后**只有一步要手动做**：Repository access 选 **Only select repositories** → 下拉里选 `ashare-pick5`。
+（官方 URL 参数不支持预选仓库，只能手动选）
+然后点 **Generate token**，复制生成的 `github_pat_xxx`（只显示一次）。
+
+### 手动路径（备选，官方文档原文步骤）
+
+右上头像 → **Settings** → 左侧 **Developer settings** → 左侧 Personal access tokens → **Fine-grained tokens** → **Generate new token**
+
+| 字段 | 填什么 |
+| --- | --- |
+| Token name | `pick5-cloud-publish` |
+| Expiration | 365 天（可自定义；不建议 No expiration） |
+| Resource owner | `zippobb` |
+| Repository access | **Only select repositories** → 选 `ashare-pick5` |
+| Permissions | 展开 **Repository permissions** → **Contents: Read and write**（只勾这一项；`Metadata: read` 会自动带上） |
+
+点 Generate token，复制 `github_pat_xxx`。
+
+### 填回 prompt
+
+把 token 填到本节下面 prompt 的 `GH_TOKEN=` 处。
+**云端小程序里的自动化 prompt 也要同步替换**——桌面端改不到云端任务。
+
+> ⚠️ 不要用本机 `~/.git-credentials` 里那枚 `gho_` classic token 写进云端 prompt——它是全作用域的，
+> 泄露即等于整个 GitHub 账号权限外泄。fine-grained token 只作用于 `ashare-pick5` 一个仓库。
+> 参考：https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
 
 ## 2. 云端自动化 prompt（整段复制）
 
