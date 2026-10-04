@@ -132,15 +132,16 @@ https://github.com/settings/personal-access-tokens/new?name=pick5-cloud-publish&
 ```
 python3 render_dashboard.py --data <当日数据目录> --narrative narrative.json --out index.html
 ```
-然后把 `index.html` 推回仓库 main 分支根目录，**commit message 写 `dashboard <trade_date>`**：
+然后用仓库里的发布脚本把 `index.html` 和 `narrative.json` 一起推回 main 分支
+（**走 REST API，不需要 git**——云端 git 未实测过，Python 3.11 已确认可用）：
 ```
-git clone https://x-access-token:$GH_TOKEN@github.com/zippobb/ashare-pick5.git repo
-cd repo && cp <index.html> index.html
-git -c user.email=cloud@workbuddy -c user.name=pick5-cloud add index.html
-git -c user.email=cloud@workbuddy -c user.name=pick5-cloud commit -m "dashboard <trade_date>"
-git push origin main
+curl -sO https://raw.githubusercontent.com/zippobb/ashare-pick5/main/publish_pages.py
+export GH_TOKEN=<填入你的 github_pat_xxx>
+python3 publish_pages.py --dir <当日数据目录> --html index.html --date <trade_date>
 ```
-同时把 `narrative.json` 放到 `daily/<trade_date>/narrative.json` 一并提交（便于留档）。
+脚本会自动处理已有文件的 sha、写入 `index.html` 与 `daily/<trade_date>/narrative.json`，
+commit message 固定为 `dashboard <trade_date>`，输出 `PUSHED` 即成功。
+（若你确认云端有 git，也可以照旧用 git clone + commit + push，效果一样。）
 
 推完等约 60 秒，用 curl 校验（**必须带缓存位，否则命中 CDN 旧版**）：
 `https://zippobb.github.io/ashare-pick5/?v=<trade_date>` 返回 200 且内容里能看到当日的 trade_date。
