@@ -95,6 +95,12 @@ def datetime_fmt(td):
     return '%s-%s-%s' % (td[:4], td[4:6], td[6:8])
 
 
+def theme_cell(r):
+    if r.get('theme'):
+        return esc(r['theme'])
+    return '<span class="tag gy">未入题材表</span>%s' % esc(r.get('sector') or '-')
+
+
 def render_alert(narr):
     if not narr.get('alert_title') and not narr.get('alert_bullets'):
         return ''
@@ -146,7 +152,8 @@ def render_snap(env):
 
 
 def pick_tags(r, extra):
-    t = ['<span class="tag">%s</span>' % esc(r.get('theme') or '-')]
+    t = ['<span class="tag">%s</span>' % (esc(r['theme']) if r.get('theme')
+                                         else '行业：%s' % esc(r.get('sector') or '-'))]
     biz = r.get('biz') or ''
     if '待核验' in biz or not biz:
         t.append('<span class="tag gy">题材待核验</span>')
@@ -227,11 +234,15 @@ def render_pool(rows):
                   % (i, esc(r.get('name')), esc(r.get('code')), esc(r.get('seg') or ''),
                      fnum(r.get('total'), 1), pct_cls(r.get('chg')), pct_txt(r.get('chg')),
                      fnum(r.get('dma')), fnum(r.get('amt')), fnum(r.get('totalcap'), 1),
-                     esc(r.get('theme') or '')))
+                     theme_cell(r)))
+    n = sum(1 for r in rows if not r.get('theme'))
+    note = ('<div class="note">题材取自上游人工维护的题材映射表，非算法推断。'
+            '标「未入题材表」的 %d 只不在表内，此处显示行业分类代替；'
+            '其逻辑纯度维度按最低档计分，排名已相应偏低。</div>' % n) if n else ''
     return ('<h2>三、候选池全量（%d 只，按总分降序）</h2>'
             '<table><tr><th>#</th><th>名称</th><th>代码</th><th>板块</th><th class="r">总分</th>'
             '<th class="r">涨跌</th><th class="r">距MA20</th><th class="r">成交额亿</th>'
-            '<th class="r">市值亿</th><th>题材</th></tr>%s</table>' % (len(rows), ''.join(tr)))
+            '<th class="r">市值亿</th><th>题材</th></tr>%s</table>%s' % (len(rows), ''.join(tr), note))
 
 
 def render_dropped(dropped):
