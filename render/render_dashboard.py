@@ -96,8 +96,10 @@ def datetime_fmt(td):
 
 
 def theme_cell(r):
+    mark = ' <span class="tag w" title="%s">待修正</span>' % esc(r.get('theme_reason') or '') \
+        if r.get('theme_review') else ''
     if r.get('theme'):
-        return esc(r['theme'])
+        return esc(r['theme']) + mark
     return '<span class="tag gy">未入题材表</span>%s' % esc(r.get('sector') or '-')
 
 
@@ -154,6 +156,8 @@ def render_snap(env):
 def pick_tags(r, extra):
     t = ['<span class="tag">%s</span>' % (esc(r['theme']) if r.get('theme')
                                          else '行业：%s' % esc(r.get('sector') or '-'))]
+    if r.get('theme_review'):
+        t.append('<span class="tag w">题材待修正：%s</span>' % esc(r.get('theme_reason') or ''))
     biz = r.get('biz') or ''
     if '待核验' in biz or not biz:
         t.append('<span class="tag gy">题材待核验</span>')
