@@ -286,7 +286,18 @@ def roe_score(r):
     return 25
 
 
-def score(cands, tx, listing, fin, kf, min_amt=0):
+def load_theme_override(cfg):
+    """人工修正表：{code: {theme, biz, fact}}，优先级最高。"""
+    for p in (cfg.get('theme_override_path') or '', 'theme/theme_override.json'):
+        if p and os.path.exists(p):
+            try:
+                return json.load(open(p, encoding='utf-8'))
+            except Exception as e:
+                log('题材修正表读取失败 %s: %s' % (p, e))
+    return {}
+
+
+def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None):
     rows, dropped = [], []
     for bare, code, name, pfx, mkt, seg, c in cands:
         q = tx.get(bare) or {}
@@ -306,6 +317,19 @@ def score(cands, tx, listing, fin, kf, min_amt=0):
 
         tc = c.get('theme_classification') or {}
         biz = tc.get('business_realization')
+        theme = tc.get('primary_theme')
+        fact = tc.get('fact_summary')
+        need_review = bool(tc.get('needs_manual_review'))
+        review_reason = tc.get('review_reason') or ''
+        ov = (ovr or {}).get(code) or (ovr or {}).get(bare) or {}
+        if ov:
+            if ov.get('theme'):
+                theme = ov['theme']
+            if ov.get('biz'):
+                biz = ov['biz']
+            if ov.get('fact'):
+                fact = ov['fact']
+            need_review, review_reason = False, ''
         dma = c.get('distance_ma20_atr') or 0
         roe = f.get('roe')
         kfv = (kf.get(bare) or {}).get('kf_yi')
@@ -339,7 +363,9 @@ def score(cands, tx, listing, fin, kf, min_amt=0):
             'cvw': round(c.get('close_vs_vwap_pct') or 0, 2),
             'r1': round(c.get('return_1d_pct') or 0, 2), 'r5': round(c.get('return_5d_pct') or 0, 2),
             'r10': round(c.get('return_10d_pct') or 0, 2), 'r20': round(c.get('return_20d_pct') or 0, 2),
-            'theme': tc.get('primary_theme'), 'biz': biz, 'fact': tc.get('fact_summary'),
+            'theme': theme, 'biz': biz, 'fact': fact,
+            'theme_src': ('manual_override' if ov else tc.get('classification_status')),
+            'theme_review': need_review, 'theme_reason': review_reason,
             'roe': roe, 'np': np_yi, 'rev': f.get('revenue_yi') or 0, 'report': f.get('report'),
             'gm': round(f.get('gross_margin') or 0, 1),
             'kf_yi': kfv, 'kf_ratio': kf_ratio,
@@ -497,7 +523,7 @@ def main():
     else:
         log('FORCE_DATE=%s，跳过休市校验' % target)
 
-    use_local = bool(cfg.get('local_bundle_path'))
+    use_local = bool(cfg.get('local_bundle_path'))   # 配了本地 bundle 就不联网拉 GitHub
     if use_local:
         log('走 ECS 本地源数据: %s' % cfg['local_bundle_path'])
         repo = abspath(cfg['repo_dir'])
@@ -544,7 +570,9 @@ def main():
                         'tx': tx.get(bare), 'listing': listing.get(bare),
                         'fin': fin.get(bare), 'kf': kf.get(bare)}
 
-    rows, dropped = score(cands, tx, listing, fin, kf, cfg.get('min_amount_yi', 0))
+    ovr = load_theme_override(cfg)
+    log('题材人工修正表 %d 条' % len(ovr))
+    rows, dropped = score(cands, tx, listing, fin, kf, cfg.get('min_amount_yi', 0), ovr)
     log('打分完成 候选%d 剔除%d' % (len(rows), len(dropped)))
 
     bad = [r for r in rows[:10] if r['kf_flag'] == '利润失真']
