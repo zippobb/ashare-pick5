@@ -354,7 +354,7 @@ def fetch_kf(cands):
     kf = {}
     for bare, code, name, pfx, mkt, seg, _ in cands:
         url = (EM + '?reportName=RPT_F10_FINANCE_MAINFINADATA'
-               '&columns=SECUCODE,REPORT_DATE,KCFJCXSYJLR'
+               '&columns=SECUCODE,REPORT_DATE,KCFJCXSYJLR,KCFJCXSYJLRTZ,ROEKCJQ'
                '&filter=(SECUCODE%%3D%%22%s%%22)'
                '&sortColumns=REPORT_DATE&sortTypes=-1&pageSize=1&source=HSF10&client=PC' % (bare + '.' + mkt))
         t = http_get(url)
@@ -364,6 +364,9 @@ def fetch_kf(cands):
             rows = json.loads(t).get('result', {}).get('data') or []
             if rows and rows[0].get('KCFJCXSYJLR') is not None:
                 kf[bare] = {'kf_yi': round(rows[0]['KCFJCXSYJLR'] / 1e8, 4),
+                            # 扣非同比增速 + 扣非加权ROE：用于区分"主业在改善"与"主业在崩塌"
+                            'kf_yoy': rows[0].get('KCFJCXSYJLRTZ'),
+                            'roe_kf': rows[0].get('ROEKCJQ'),
                             'report': (rows[0].get('REPORT_DATE') or '')[:10]}
         except Exception:
             pass
@@ -445,13 +448,48 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         dma = c.get('distance_ma20_atr') or 0
         roe = f.get('roe')
         kfv = (kf.get(bare) or {}).get('kf_yi')
+        kmeta = (kf.get(bare) or {})
         np_yi = f.get('netprofit_yi') or 0
         kf_ratio = round(kfv / np_yi, 3) if (kfv is not None and np_yi > 0) else None
-        # 用户长期规则：扣非/归母 < 60% 视为利润失真，一票否决（此前只标记未执行）
-        if kf_ratio is not None and kf_ratio < 0.6:
+        kf_yoy = kmeta.get('kf_yoy')
+        roe_kf = kmeta.get('roe_kf')
+
+        # ---- 利润质量三档判别（2026-10-09 用户质疑后重构）----
+        # 旧规则：扣非/归母 < 60% 一票否决。
+        #   缺陷：只看"比值"，不区分主业在改善还是在崩塌。
+        #   实证（2026-10-08 电池题材扫描）：
+        #     国轩高科 扣非比 8%，但扣非同比 +46.7%、归母同比 +278% —— 主业在改善，被误杀
+        #     派能科技 扣非比 34%，扣非同比 +203.8% —— 扭亏上行，被误杀
+        #     欣旺达   扣非比 16%，扣非同比 -83.3%、扣非ROE 0.39% —— 主业崩塌，该杀
+        #   三者用旧规则是同一结论，显然不成立。
+        # 新规则：以"主业是否在赚钱、趋势是向上还是向下"为本，比值为辅。
+        if kfv is None or np_yi <= 0:
+            # 数据缺失或本身亏损，亏损硬性处理见下方统一判定
+            if np_yi <= 0 and kfv is not None and kfv < 0:
+                dropped.append({'code': code, 'name': name, 'seg': seg,
+                                'reason': '归母与扣非双亏（%.2f亿/%.2f亿）' % (np_yi, kfv)})
+                continue
+        elif kfv <= 0:
             dropped.append({'code': code, 'name': name, 'seg': seg,
-                            'reason': '扣非/归母 %.1f%% < 60%% 利润失真' % (kf_ratio * 100)})
+                            'reason': '扣非为负 %.2f亿，主营业务亏损' % kfv})
             continue
+        elif kf_yoy is not None and kf_yoy <= -50 and (roe_kf is not None and roe_kf < 1.0):
+            # 主业崩塌：扣非绝对回报近零（扣非ROE<1%）且同比腰斩以上
+            dropped.append({'code': code, 'name': name, 'seg': seg,
+                            'reason': '主业崩塌：扣非同比 %.0f%% 且扣非ROE %.2f%%'
+                                      % (kf_yoy, roe_kf)})
+            continue
+
+        # 未达硬剔除 → 计算利润质量降权（从总分扣，不删标的）
+        if kf_ratio is not None and kf_ratio < 0.6:
+            if kf_yoy is not None and kf_yoy > 0:
+                kf_pen, kf_tag = 8, '一次性收益抬高利润·主业改善'
+            else:
+                kf_pen, kf_tag = 12, '一次性收益抬高利润·主业下滑'
+        elif np_yi <= 0:
+            kf_pen, kf_tag = 12, '归母亏损'
+        else:
+            kf_pen, kf_tag = 0, ''
 
         s_pos = max(0.0, 35.0 * (1 - dma / 3.0))
         s_fun = roe_score(roe) * 30.0 / 25.0
@@ -460,7 +498,8 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         atr_pct = c.get('atr14_pct') or 0
         km = (kl or {}).get(bare) or {}
         cpen, ctag = crowd_penalty(km.get('r250'), atr_pct, dma)
-        total = s_pos + s_fun + s_biz + s_tec - cpen
+        pen = cpen + kf_pen
+        total = s_pos + s_fun + s_biz + s_tec - pen
 
         rows.append({
             'code': code, 'name': name, 'seg': seg,
@@ -488,9 +527,13 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             'theme_review': need_review, 'theme_reason': review_reason,
             'roe': roe, 'np': np_yi, 'rev': f.get('revenue_yi') or 0, 'report': f.get('report'),
             'gm': round(f.get('gross_margin') or 0, 1),
-            'kf_yi': kfv, 'kf_ratio': kf_ratio,
-            'kf_flag': ('利润失真' if (kf_ratio is not None and kf_ratio < 0.6) else
-                        ('亏损' if np_yi <= 0 else 'OK')),
+            'kf_yi': kfv, 'kf_ratio': kf_ratio, 'kf_yoy': kf_yoy, 'roe_kf': roe_kf,
+            'kf_pen': kf_pen, 'kf_tag': kf_tag,
+            'kf_flag': ('主业崩塌' if (kf_yoy is not None and kf_yoy <= -50 and roe_kf is not None
+                                   and roe_kf < 1.0) else
+                        ('扣非亏损' if (kfv is not None and kfv <= 0) else
+                         ('利润失真' if (kf_ratio is not None and kf_ratio < 0.6) else
+                          ('亏损' if np_yi <= 0 else 'OK')))),
             'high_knife': bool(dma >= 2.0),
             'atrp': round(atr_pct, 2),
             'r250': km.get('r250'), 'r120': km.get('r120'), 'ddh': km.get('ddh'),
@@ -738,9 +781,9 @@ def main():
 
     print('\n=== Top5 (%s) ===' % want)
     for i, r in enumerate(picks, 1):
-        print('%d. %-8s %-6s %5.1f | 位置%.0f 基本%.0f 逻辑%.0f 技术%.0f 拥挤-%d | 扣非%s | %s/%s' % (
+        print('%d. %-8s %-6s %5.1f | 位置%.0f 基本%.0f 逻辑%.0f 技术%.0f 拥挤-%d 质量-%d | 扣非%s | %s/%s' % (
             i, r['name'], r['code'], r['total'], r['sp'], r['sf'], r['sb'], r['st'],
-            r['crowd_pen'], r['kf_flag'], r['theme'], r['cluster'] or '未归类'))
+            r['crowd_pen'], r['kf_pen'], r['kf_flag'], r['theme'], r['cluster'] or '未归类'))
     return 0
 
 
