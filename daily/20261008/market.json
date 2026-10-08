@@ -66,5 +66,10 @@
   "external": 10,
   "scored": 31,
   "dropped": 1
+ },
+ "risk_controls": {
+  "cluster_cap": 2,
+  "cluster_capped": [],
+  "crowd_rule": "年涨幅+ATR%+贴均线，实验参数未回测"
  }
 }
