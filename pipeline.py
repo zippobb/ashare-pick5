@@ -447,6 +447,11 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         kfv = (kf.get(bare) or {}).get('kf_yi')
         np_yi = f.get('netprofit_yi') or 0
         kf_ratio = round(kfv / np_yi, 3) if (kfv is not None and np_yi > 0) else None
+        # 用户长期规则：扣非/归母 < 60% 视为利润失真，一票否决（此前只标记未执行）
+        if kf_ratio is not None and kf_ratio < 0.6:
+            dropped.append({'code': code, 'name': name, 'seg': seg,
+                            'reason': '扣非/归母 %.1f%% < 60%% 利润失真' % (kf_ratio * 100)})
+            continue
 
         s_pos = max(0.0, 35.0 * (1 - dma / 3.0))
         s_fun = roe_score(roe) * 30.0 / 25.0
