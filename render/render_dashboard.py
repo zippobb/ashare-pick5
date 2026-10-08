@@ -164,8 +164,16 @@ def pick_tags(r, extra):
     else:
         t.append('<span class="tag b">%s</span>' % esc(str(biz)[:8]))
     kr = r.get('kf_ratio')
+    ky = r.get('kf_yoy')
     if kr is not None and r.get('np') and r['np'] > 0:
-        t.append('<span class="tag %s">扣非 %.0f%%</span>' % ('b' if kr >= 0.6 else 'w', kr * 100))
+        tip = ('扣非同比 %s%% · 扣非ROE %s%%'
+               % (fnum(ky, 1) if ky is not None else 'NA', fnum(r.get('roe_kf'), 2)))
+        if kr >= 0.6:
+            t.append('<span class="tag b" title="%s">扣非占比 %.0f%%</span>' % (esc(tip), kr * 100))
+        else:
+            t.append('<span class="tag w" title="%s">一次性收益抬高利润 −%d（%s）</span>'
+                     % (esc(tip), r.get('kf_pen') or 0,
+                        '主业改善' if (ky is not None and ky > 0) else '主业下滑'))
     if r.get('high_knife'):
         t.append('<span class="tag w">高位飞刀</span>')
     if r.get('crowd_pen'):
@@ -226,9 +234,14 @@ def render_pick(r, i, narr):
     fals = ('<div class="falsify"><b>证伪条件：</b>%s</div>'
             % (nd.get('falsify') or ('收盘有效跌破 <b>%s</b>，或次日放量下跌且收盘价低于 VWAP 1%% 以上'
                                      '——任一出现即离场。' % ops['stop'])))
-    crowd = ('<div class="note">总分 = 四维合计 %s − 拥挤度扣分 %d</div>'
+    pens = []
+    if r.get('crowd_pen'):
+        pens.append('拥挤度 −%d' % r['crowd_pen'])
+    if r.get('kf_pen'):
+        pens.append('利润质量 −%d' % r['kf_pen'])
+    crowd = ('<div class="note">总分 = 四维合计 %s − %s</div>'
              % (fnum((r.get('sp') or 0) + (r.get('sf') or 0) + (r.get('sb') or 0) + (r.get('st') or 0), 1),
-                r.get('crowd_pen') or 0)) if r.get('crowd_pen') else ''
+                '、'.join(pens))) if pens else ''
     body = ('<div class="pick-bd"><div class="grid2"><div>'
             '<h3>四维综合评分 <b class="mono %st">%s</b></h3><div class="bars">%s</div>%s</div>'
             '<div><h3>六维技术评分（上游口径）</h3><div class="bars">%s</div></div></div>'
@@ -248,7 +261,8 @@ def render_pool(rows):
                   % (i, esc(r.get('name')), esc(r.get('code')), esc(r.get('seg') or ''),
                      fnum(r.get('total'), 1), pct_cls(r.get('chg')), pct_txt(r.get('chg')),
                      fnum(r.get('dma')), fnum(r.get('amt')), fnum(r.get('totalcap'), 1),
-                     ('-%d' % r['crowd_pen']) if r.get('crowd_pen') else '—',
+                     ('-%d' % (r.get('crowd_pen', 0) + r.get('kf_pen', 0)))
+                     if (r.get('crowd_pen') or r.get('kf_pen')) else '—',
                      theme_cell(r), cap))
     n = sum(1 for r in rows if not r.get('theme'))
     note = ('<div class="note">题材取自上游人工维护的题材映射表，非算法推断。'
