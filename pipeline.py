@@ -29,6 +29,8 @@ DEFAULT_CFG = {
     "out_dir": "out",
     # 成交额下限（亿元）。用户 2026-10-04 决定：不设门槛，默认 0
     "min_amount_yi": 0,
+    # 同一产业链在 Top5 里最多几只（用户 2026-10-08 决定：2）
+    "cluster_cap": 2,
     # 结果推送到 GitHub（云端自动化再从这里取数生成看板）
     "push": {
         "enabled": False,
@@ -237,6 +239,116 @@ def fetch_fin(cands):
     return fin
 
 
+KLINE_API = 'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get'
+
+
+def fetch_kline_metrics(cands, trade_date, need=260):
+    """拉前复权日线，算拥挤度三指标：250日涨幅 / 120日涨幅 / 距年内高点回撤。
+
+    trade_date 形如 20261008；返回值 {bare: {r250, r120, ddh, bars}}，失败则缺项（降级为不扣分）。
+    """
+    upto = '%s-%s-%s' % (trade_date[:4], trade_date[4:6], trade_date[6:8])
+    out = {}
+    for bare, code, name, pfx, mkt, seg, _ in cands:
+        sym = pfx + bare
+        u = '%s?param=%s,day,,,%d,qfq' % (KLINE_API, sym, need)
+        txt = http_get(u, retries=3, timeout=30)
+        if not txt:
+            continue
+        try:
+            d = json.loads(txt)['data'][sym]
+            rows = d.get('qfqday') or d.get('day') or []
+        except Exception:
+            continue
+        rows = [r for r in rows if r[0] <= upto]
+        if len(rows) < 30:
+            continue
+        cl = [float(r[2]) for r in rows]
+        hi = [float(r[3]) for r in rows]
+        c = cl[-1]
+        out[bare] = {
+            'r250': round((c / cl[0] - 1) * 100, 1) if len(cl) > 2 else None,
+            'r120': round((c / cl[-121] - 1) * 100, 1) if len(cl) > 121 else None,
+            'ddh': round((1 - c / max(hi[-250:])) * 100, 1),
+            'bars': len(rows),
+        }
+        time.sleep(0.25)
+    return out
+
+
+# ---------- 3.1) 拥挤度扣分（2026-10-08 实盘复盘后新增） ----------
+# 教训：9/30 的 Top1 仕佳光子 10/8 单日 -17.4%，而它当时 dma=0.04（贴均线）被判"位置最安全"。
+# 根因：dma 的单位是 ATR，跨股票不可比；ATR 6% 的票"贴均线"蕴含的绝对下行远大于 ATR 2% 的票。
+# 且当年涨幅巨大、筹码高度集中时，赛道拥挤度本身就是风险源。
+CROWD_RULES = [
+    # (年涨幅下限, ATR%下限, dma上限(可空), 扣分, 标签)
+    (200.0, 4.5, None, 12, '高位高波动'),
+    (100.0, 5.0, None, 8, '高位高波动'),
+    (60.0, 4.5, 0.5, 5, '贴均线筹码集中'),
+    (60.0, 3.5, 0.3, 3, '贴均线筹码集中'),
+]
+
+
+def crowd_penalty(r250, atr_pct, dma):
+    """返回 (扣分, 标签)。数据缺失时返回 (0, '数据不足')。"""
+    if r250 is None or not atr_pct:
+        return 0, '数据不足'
+    best, tag = 0, ''
+    for r_lim, a_lim, d_lim, pen, t in CROWD_RULES:
+        if r250 >= r_lim and atr_pct >= a_lim and (d_lim is None or dma <= d_lim):
+            if pen > best:
+                best, tag = pen, t
+    return best, (tag or '正常')
+
+
+# ---------- 3.2) 产业链集中度上限 ----------
+# 教训：9/30 的 Top5 里 4 只在同一条 AI 算力 β 上，等同单票重仓，今日同跌。
+# 注意：顺序敏感，'光芯片'含'芯片'，必须排在'半导体'之前
+CLUSTERS = [
+    ('光通信', ['光芯片', '光模块', 'CPO', '光通信', '光缆', '激光器', '光器件', '光纤', '光互连']),
+    ('PCB覆铜板', ['覆铜板', 'PCB', '铜箔', '载板', '线路板']),
+    ('算力IDC', ['算力', 'IDC', '数据中心', '服务器', '液冷', '交换机', '电源模块',
+                 '铜连接', '高速铜缆']),
+    ('半导体', ['存储', '芯片', '半导体', '晶圆', '封测', '光刻', 'MCU', '模拟芯片',
+                '功率半导体', 'EDA', '硅片', '电子特气']),
+    ('医药', ['创新药', 'CXO', '原料药', '生物制药', '医药', '医疗器械', '疫苗', '中药',
+              '诊断', '重组蛋白', '合成生物', '精准医疗']),
+    ('新能源', ['锂电', '固态电池', '光伏', '储能', '风电', '电解液', '电池', '隔膜', '正极', '负极']),
+    ('汽车', ['汽车', '智能驾驶', '汽零', '一体化压铸', '汽车电子', '轮胎', '座椅']),
+    ('资源周期', ['有色', '煤炭', '油气', '石油', '航运', '化工', '钢铁', '稀土', '锂矿', '黄金', '农药']),
+    ('消费', ['白酒', '食品', '家电', '纺织', '零售', '宠物', '消费', '日化', '农业', '养殖']),
+    ('金融地产', ['银行', '券商', '保险', '地产', '金融']),
+    ('机器人军工', ['机器人', '减速器', '丝杠', '军工', '航空', '航天', '卫星', '低空']),
+    ('软件传媒', ['软件', '信创', '传媒', '游戏', 'AI应用', '数据要素']),
+]
+
+
+def cluster_of(theme, sector):
+    s = '%s %s' % (theme or '', sector or '')
+    for name, kws in CLUSTERS:
+        for k in kws:
+            if k in s:
+                return name
+    return ''
+
+
+def pick_top5(rows, cap=2):
+    """按分数取 5 只，同一产业链最多 cap 只；被挤掉的记 cluster_cap 供页面展示。"""
+    picks, cnt, capped = [], {}, []
+    for r in rows:
+        if len(picks) >= 5:
+            break
+        cl = r.get('cluster') or ''
+        if cl and cnt.get(cl, 0) >= cap:
+            r['capped_by'] = cl
+            capped.append({'code': r['code'], 'name': r['name'], 'cluster': cl, 'total': r['total']})
+            continue
+        picks.append(r)
+        if cl:
+            cnt[cl] = cnt.get(cl, 0) + 1
+    return picks, capped
+
+
 def fetch_kf(cands):
     """扣非净利（亿元），用于利润质量核查。"""
     kf = {}
@@ -297,7 +409,7 @@ def load_theme_override(cfg):
     return {}
 
 
-def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None):
+def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
     rows, dropped = [], []
     for bare, code, name, pfx, mkt, seg, c in cands:
         q = tx.get(bare) or {}
@@ -340,7 +452,10 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None):
         s_fun = roe_score(roe) * 30.0 / 25.0
         s_biz = BIZ_SCORE.get(biz, 4 if biz is None else 5) * 20.0 / 15.0
         s_tec = 15.0 * min(1.0, (c.get('technical_score') or 0) / 30.0)
-        total = s_pos + s_fun + s_biz + s_tec
+        atr_pct = c.get('atr14_pct') or 0
+        km = (kl or {}).get(bare) or {}
+        cpen, ctag = crowd_penalty(km.get('r250'), atr_pct, dma)
+        total = s_pos + s_fun + s_biz + s_tec - cpen
 
         rows.append({
             'code': code, 'name': name, 'seg': seg,
@@ -372,6 +487,10 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None):
             'kf_flag': ('利润失真' if (kf_ratio is not None and kf_ratio < 0.6) else
                         ('亏损' if np_yi <= 0 else 'OK')),
             'high_knife': bool(dma >= 2.0),
+            'atrp': round(atr_pct, 2),
+            'r250': km.get('r250'), 'r120': km.get('r120'), 'ddh': km.get('ddh'),
+            'crowd_pen': cpen, 'crowd_tag': ctag,
+            'cluster': cluster_of(theme, c.get('sector')), 'capped_by': '',
             'sector': c.get('sector'), 'secrank': c.get('sector_rank'),
             'setup': c.get('setup_type'),
             'quant_rank': c.get('quant_rank'), 'quant_score': round(c.get('quant_score') or 0, 2),
@@ -570,10 +689,17 @@ def main():
                         'tx': tx.get(bare), 'listing': listing.get(bare),
                         'fin': fin.get(bare), 'kf': kf.get(bare)}
 
+    kl = fetch_kline_metrics(cands, want)
+    log('K线就绪 %d/%d 只' % (len(kl), len(cands)))
+
     ovr = load_theme_override(cfg)
     log('题材人工修正表 %d 条' % len(ovr))
-    rows, dropped = score(cands, tx, listing, fin, kf, cfg.get('min_amount_yi', 0), ovr)
+    rows, dropped = score(cands, tx, listing, fin, kf, cfg.get('min_amount_yi', 0), ovr, kl)
     log('打分完成 候选%d 剔除%d' % (len(rows), len(dropped)))
+    hit = [r for r in rows[:12] if r['crowd_pen'] > 0]
+    if hit:
+        log('拥挤度扣分: %s' % ', '.join('%s-%d(%s)' % (r['name'], r['crowd_pen'], r['crowd_tag'])
+                                         for r in hit))
 
     bad = [r for r in rows[:10] if r['kf_flag'] == '利润失真']
     if bad:
@@ -582,7 +708,9 @@ def main():
     comment = llm_comment(cfg, rows, want, dropped)
     log('LLM 点评: %s' % ('ok' if comment.get('json') else comment.get('error', 'skipped')))
 
-    picks = rows[:5]
+    picks, capped = pick_top5(rows, cap=cfg.get('cluster_cap', 2))
+    if capped:
+        log('产业链上限挤出: %s' % ', '.join('%s(%s)' % (x['name'], x['cluster']) for x in capped))
     market = {
         'trade_date': want,
         'previous_trade_date': bundle.get('previous_trade_date'),
@@ -594,6 +722,8 @@ def main():
         'pool_counts': {'official': len(bundle.get('official_review_candidates') or []),
                         'external': len(bundle.get('external_review_candidates') or []),
                         'scored': len(rows), 'dropped': len(dropped)},
+        'risk_controls': {'cluster_cap': cfg.get('cluster_cap', 2), 'cluster_capped': capped,
+                          'crowd_rule': '年涨幅+ATR%+贴均线，实验参数未回测'},
     }
     day_dir = archive(cfg, want, {'verify': verify, 'scored': rows,
                                   'dropped': dropped, 'picks': picks,
@@ -603,9 +733,9 @@ def main():
 
     print('\n=== Top5 (%s) ===' % want)
     for i, r in enumerate(picks, 1):
-        print('%d. %-8s %-6s %5.1f | 位置%.0f 基本%.0f 逻辑%.0f 技术%.0f | 扣非%s | %s' % (
+        print('%d. %-8s %-6s %5.1f | 位置%.0f 基本%.0f 逻辑%.0f 技术%.0f 拥挤-%d | 扣非%s | %s/%s' % (
             i, r['name'], r['code'], r['total'], r['sp'], r['sf'], r['sb'], r['st'],
-            r['kf_flag'], r['theme']))
+            r['crowd_pen'], r['kf_flag'], r['theme'], r['cluster'] or '未归类'))
     return 0
 
 
