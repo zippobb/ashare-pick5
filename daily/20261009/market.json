@@ -1,0 +1,82 @@
+{
+ "trade_date": "20261009",
+ "previous_trade_date": "20261008",
+ "next_trade_date": "20261012",
+ "generated_at": "2026-10-09T18:21:25+08:00",
+ "stage": "21:30_quantitative_review_payload",
+ "rules": {
+  "minimum_final_score": 60,
+  "quant_review_limit": 30,
+  "risk_rank_effect": false,
+  "risk_score_effect": 0,
+  "technical_minimum": 18,
+  "weights": {
+   "elasticity": 20,
+   "fundamentals": 10,
+   "logic_purity": 15,
+   "major_positive": 5,
+   "market_fit": 5,
+   "sector": 15,
+   "technical": 30
+  }
+ },
+ "env": {
+  "above_ma20_ratio_pct": 38.64,
+  "advance_count": 3297,
+  "advance_ratio_pct": 59.3092,
+  "decline_count": 2145,
+  "major_indices": [
+   {
+    "close": 3813.7913,
+    "ma20": 3892.7483,
+    "name": "上证综指",
+    "return_1d_pct": 0.0495,
+    "return_5d_pct": -1.9181,
+    "trend": "下跌",
+    "ts_code": "000001.SH"
+   },
+   {
+    "close": 12641.8584,
+    "ma20": 13365.164,
+    "name": "深证成指",
+    "return_1d_pct": 0.1661,
+    "return_5d_pct": -5.0696,
+    "trend": "下跌",
+    "ts_code": "399001.SZ"
+   },
+   {
+    "close": 3043.3346,
+    "ma20": 3277.1034,
+    "name": "创业板指",
+    "return_1d_pct": 0.2199,
+    "return_5d_pct": -7.4678,
+    "trend": "下跌",
+    "ts_code": "399006.SZ"
+   }
+  ],
+  "market_amount_yi": 19166.9156,
+  "market_median_return_1d_pct": 0.5959,
+  "phase": "震荡",
+  "posture": "防守",
+  "trade_date": "20261009",
+  "unchanged_count": 117
+ },
+ "pool_counts": {
+  "official": 30,
+  "external": 10,
+  "scored": 30,
+  "dropped": 10
+ },
+ "risk_controls": {
+  "cluster_cap": 2,
+  "cluster_capped": [
+   {
+    "code": "000983.SZ",
+    "name": "山西焦煤",
+    "cluster": "资源周期",
+    "total": 83.3
+   }
+  ],
+  "crowd_rule": "年涨幅+ATR%+贴均线，实验参数未回测"
+ }
+}
