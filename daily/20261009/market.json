@@ -2,7 +2,7 @@
  "trade_date": "20261009",
  "previous_trade_date": "20261008",
  "next_trade_date": "20261012",
- "generated_at": "2026-10-09T18:21:25+08:00",
+ "generated_at": "2026-10-12T00:44:41+08:00",
  "stage": "21:30_quantitative_review_payload",
  "rules": {
   "minimum_final_score": 60,
@@ -75,6 +75,12 @@
     "name": "山西焦煤",
     "cluster": "资源周期",
     "total": 83.3
+   },
+   {
+    "code": "002734.SZ",
+    "name": "利民股份",
+    "cluster": "资源周期",
+    "total": 77.0
    }
   ],
   "crowd_rule": "年涨幅+ATR%+贴均线，实验参数未回测"
