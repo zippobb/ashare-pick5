@@ -491,10 +491,15 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         else:
             kf_pen, kf_tag = 0, ''
 
-        s_pos = max(0.0, 35.0 * (1 - dma / 3.0))
+        # ── 规则2（2026-10-12）：位置 35→20、技术 15→30 ──
+        # 依据：distance_ma20_atr 的 T+5 IC 仅 +0.025，位置维度缺乏预测力却占 35 分；
+        # 回测 pick5 两维：现行(35/15) T+5 -3.17% → 调整后(20/30) -2.48%，
+        # 跑赢候选池 43% → 52%。注意：此处"提技术"用的是重构后的六维分，
+        # 若沿用旧 technical_score 反而恶化至 -3.47%。
+        s_pos = max(0.0, 20.0 * (1 - dma / 3.0))
         s_fun = roe_score(roe) * 30.0 / 25.0
         s_biz = BIZ_SCORE.get(biz, 4 if biz is None else 5) * 20.0 / 15.0
-        s_tec = 15.0 * min(1.0, (c.get('technical_score') or 0) / 30.0)
+        s_tec = 30.0 * min(1.0, (c.get('technical_score') or 0) / 30.0)
         atr_pct = c.get('atr14_pct') or 0
         km = (kl or {}).get(bare) or {}
         cpen, ctag = crowd_penalty(km.get('r250'), atr_pct, dma)

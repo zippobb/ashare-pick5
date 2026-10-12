@@ -215,8 +215,8 @@ def render_pick(r, i, narr):
         % (' g' if i == 1 else '', i, esc(r.get('name')), esc(r.get('code')),
            esc(r.get('seg') or '-'), pick_tags(r, nd.get('tags_extra')),
            fnum(r.get('close')), pct_cls(chg), pct_txt(chg)))
-    b1 = (bar('位置安全', r.get('sp', 0), 35, True) + bar('基本面', r.get('sf', 0), 30, True)
-          + bar('逻辑纯度', r.get('sb', 0), 20, True) + bar('技术', r.get('st', 0), 15, True))
+    b1 = (bar('位置安全', r.get('sp', 0), 20, True) + bar('基本面', r.get('sf', 0), 30, True)
+          + bar('逻辑纯度', r.get('sb', 0), 20, True) + bar('技术', r.get('st', 0), 30, True))
     b2 = (bar('技术总分', r.get('tech', 0), 30) + bar('结构健康', r.get('sh') or 0, 3)
           + bar('趋势结构', r.get('tsc') or 0, 8) + bar('量价', r.get('vp', 0), 6)
           + bar('市场契合', r.get('mf', 0), 5) + bar('相对强度', r.get('mrs', 0), 5))
