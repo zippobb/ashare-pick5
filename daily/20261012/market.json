@@ -2,7 +2,7 @@
  "trade_date": "20261012",
  "previous_trade_date": "20261009",
  "next_trade_date": "20261013",
- "generated_at": "2026-10-12T21:57:10+08:00",
+ "generated_at": "2026-10-13T00:32:06+08:00",
  "stage": "21:30_quantitative_review_payload",
  "rules": {
   "minimum_final_score": 60,
@@ -64,8 +64,8 @@
  "pool_counts": {
   "official": 30,
   "external": 10,
-  "scored": 40,
-  "dropped": 0
+  "scored": 21,
+  "dropped": 19
  },
  "risk_controls": {
   "cluster_cap": 2,
