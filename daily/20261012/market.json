@@ -64,8 +64,8 @@
  "pool_counts": {
   "official": 30,
   "external": 10,
-  "scored": 21,
-  "dropped": 19
+  "scored": 24,
+  "dropped": 16
  },
  "risk_controls": {
   "cluster_cap": 2,
