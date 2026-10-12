@@ -429,7 +429,7 @@ INDUSTRY_L3_FALLBACK = {}
 # 数据：data/elasticity_latest.csv（由历史日线滚动 60 日预计算）
 # 用途：只做候选池准入过滤，不参与打分权重（回测证明进权重会变差）
 ELASTICITY = {}
-ELAST_MIN = 20.0
+ELAST_MIN = 18.0
 
 
 def load_elasticity():
@@ -524,6 +524,23 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
               or INDUSTRY_L3_FALLBACK.get(bare) or '')
         norm_theme = INDUSTRY_THEME_NORMALIZE.get(_l3)
         theme_src = tc.get('classification_status') or 'machine_derived'
+        # ── 第 1 层：主业口径落地 ──
+        # 行业命中规则表时强制使用主业词（见 INDUSTRY_THEME_NORMALIZE）。
+        # 2026-10-13 修复：本层必须在 override 之前执行。否则 override 里
+        # 只填了 biz/fact、theme 留空的标的（如片仔癀）会被空 theme 挡住，
+        # 题材退回机器派生的错误热词（"特色药"）。
+        if norm_theme:
+            theme = norm_theme
+            theme_src = 'industry_normalized'
+            need_review, review_reason = False, ''
+            # ── 逻辑分补档（2026-10-13）──
+            # 题材由"主业行业"归一化而来，说明此时 题材 == 主业，该题材必然已有实际收入。
+            # 机器侧是按错误题材判定的（如联影=脑机接口、片仔癀=特色药），
+            # 它给的 biz 或空或"待核验"，系统性低估（s_biz 只拿 4/15 档 → 5.3/20）。
+            # 此处统一补到最高档；仅覆盖"无信息 / 待核验"类低档，不覆盖已有实质档位。
+            if biz is None or BIZ_SCORE.get(biz, 5) <= 5:
+                biz = u'\u5df2\u6709\u6536\u5165\uff08\u636e\u6750\u6599\uff09'
+        # ── 第 2 层：人工修正表，非空字段才覆盖（优先级最高）──
         ov = (ovr or {}).get(code) or (ovr or {}).get(bare) or {}
         if ov:
             if ov.get('theme'):
@@ -534,9 +551,16 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
                 fact = ov['fact']
             theme_src = 'manual_override'
             need_review, review_reason = False, ''
-        elif norm_theme:
-            theme = norm_theme
-            theme_src = 'industry_normalized'
+        # ── 第 2 层：人工修正表，非空字段才覆盖（优先级最高）──
+        ov = (ovr or {}).get(code) or (ovr or {}).get(bare) or {}
+        if ov:
+            if ov.get('theme'):
+                theme = ov['theme']
+            if ov.get('biz'):
+                biz = ov['biz']
+            if ov.get('fact'):
+                fact = ov['fact']
+            theme_src = 'manual_override'
             need_review, review_reason = False, ''
         dma = c.get('distance_ma20_atr') or 0
         roe = f.get('roe')
