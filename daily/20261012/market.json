@@ -1,0 +1,75 @@
+{
+ "trade_date": "20261012",
+ "previous_trade_date": "20261009",
+ "next_trade_date": "20261013",
+ "generated_at": "2026-10-12T18:21:10+08:00",
+ "stage": "21:30_quantitative_review_payload",
+ "rules": {
+  "minimum_final_score": 60,
+  "quant_review_limit": 30,
+  "risk_rank_effect": false,
+  "risk_score_effect": 0,
+  "technical_minimum": 18,
+  "weights": {
+   "elasticity": 20,
+   "fundamentals": 10,
+   "logic_purity": 15,
+   "major_positive": 5,
+   "market_fit": 5,
+   "sector": 15,
+   "technical": 30
+  }
+ },
+ "env": {
+  "above_ma20_ratio_pct": 29.635,
+  "advance_count": 1167,
+  "advance_ratio_pct": 20.9854,
+  "decline_count": 4325,
+  "major_indices": [
+   {
+    "close": 3797.2424,
+    "ma20": 3886.1046,
+    "name": "上证综指",
+    "return_1d_pct": -0.4339,
+    "return_5d_pct": -0.6899,
+    "trend": "下跌",
+    "ts_code": "000001.SH"
+   },
+   {
+    "close": 12384.8692,
+    "ma20": 13308.559,
+    "name": "深证成指",
+    "return_1d_pct": -2.0328,
+    "return_5d_pct": -3.6853,
+    "trend": "下跌",
+    "ts_code": "399001.SZ"
+   },
+   {
+    "close": 2963.8238,
+    "ma20": 3260.9673,
+    "name": "创业板指",
+    "return_1d_pct": -2.6126,
+    "return_5d_pct": -5.6054,
+    "trend": "下跌",
+    "ts_code": "399006.SZ"
+   }
+  ],
+  "market_amount_yi": 15507.5321,
+  "market_median_return_1d_pct": -1.6835,
+  "phase": "退潮",
+  "posture": "防守",
+  "trade_date": "20261012",
+  "unchanged_count": 69
+ },
+ "pool_counts": {
+  "official": 22,
+  "external": 10,
+  "scored": 20,
+  "dropped": 12
+ },
+ "risk_controls": {
+  "cluster_cap": 2,
+  "cluster_capped": [],
+  "crowd_rule": "年涨幅+ATR%+贴均线，实验参数未回测"
+ }
+}
