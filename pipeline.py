@@ -423,6 +423,43 @@ def roe_score(r):
 INDUSTRY_L3_FALLBACK = {}
 
 
+# ---------- 3.1.6) 股性/弹性门槛（2026-10-13）----------
+# 复合弹性分 0~100 = 四个波动指标的归一化均值：
+#   日均振幅(amp_mean) / 近60日单日涨幅>=5%天数占比 / 近20日波动率 / 近60日最大单日涨幅
+# 数据：data/elasticity_latest.csv（由历史日线滚动 60 日预计算）
+# 用途：只做候选池准入过滤，不参与打分权重（回测证明进权重会变差）
+ELASTICITY = {}
+ELAST_MIN = 20.0
+
+
+def load_elasticity():
+    """读预计算弹性指标，合成 0~100 分。任何异常都 fail open（返回空表）。"""
+    import csv as _csv
+    m = {}
+    for p in ('data/elasticity_latest.csv', '/opt/ashare-pick5/data/elasticity_latest.csv'):
+        try:
+            if not os.path.exists(p):
+                continue
+            with open(p, encoding='utf-8-sig') as f:
+                for r in _csv.DictReader(f):
+                    c = (r.get('ts_code') or '').strip()
+                    if not c:
+                        continue
+                    try:
+                        amp = float(r['amp_mean'])
+                        big = float(r['big_up_60'])
+                        v20 = float(r['vol20'])
+                        mg = float(r['max_gain_60'])
+                    except (ValueError, TypeError, KeyError):
+                        continue
+                    m[c] = (min(1.0, amp / 10.0) + min(1.0, big / 25.0)
+                            + min(1.0, v20 / 6.0) + min(1.0, max(0.0, mg) / 20.0)) / 4.0 * 100.0
+            break
+        except Exception as e:
+            log(u'\u5f39\u6027\u5206\u8bfb\u53d6\u5931\u8d25 %s: %s' % (p, e))
+    return m
+
+
 def load_industry_map():
     """读 theme/theme_market_full.csv 建行业字典。任何异常都 fail open（返回空表）。"""
     import csv as _csv
@@ -468,6 +505,10 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             reason = '总市值%.1f亿 < 30亿' % mc
         elif min_amt and amt and amt < min_amt:
             reason = '成交额%.2f亿 < %s亿' % (amt, min_amt)
+        if reason is None:
+            _el = ELASTICITY.get(code) or ELASTICITY.get(bare)
+            if _el is not None and _el < ELAST_MIN:
+                reason = u'\u80a1\u6027\u4e0d\u8db3\uff1a\u5f39\u6027\u5206%.0f < %.0f' % (_el, ELAST_MIN)
         if reason:
             dropped.append({'code': code, 'name': name, 'seg': seg, 'reason': reason})
             continue
@@ -579,6 +620,7 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             'cvw': round(c.get('close_vs_vwap_pct') or 0, 2),
             'r1': round(c.get('return_1d_pct') or 0, 2), 'r5': round(c.get('return_5d_pct') or 0, 2),
             'r10': round(c.get('return_10d_pct') or 0, 2), 'r20': round(c.get('return_20d_pct') or 0, 2),
+            'elast': round((ELASTICITY.get(code) or ELASTICITY.get(bare) or 0), 0),
             'theme': theme, 'biz': biz, 'fact': fact,
             'theme_src': theme_src,
             'theme_review': need_review, 'theme_reason': review_reason,
@@ -804,6 +846,10 @@ def main():
     INDUSTRY_L3_FALLBACK.clear()
     INDUSTRY_L3_FALLBACK.update(_imap)
     log('行业字典 %d 条' % len(INDUSTRY_L3_FALLBACK))
+    _el = load_elasticity()
+    ELASTICITY.clear()
+    ELASTICITY.update(_el)
+    log('弹性分 %d 条，候选门槛 %.0f' % (len(ELASTICITY), ELAST_MIN))
     rows, dropped = score(cands, tx, listing, fin, kf, cfg.get('min_amount_yi', 0), ovr, kl)
     log('打分完成 候选%d 剔除%d' % (len(rows), len(dropped)))
     hit = [r for r in rows[:12] if r['crowd_pen'] > 0]
