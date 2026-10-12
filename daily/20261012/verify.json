@@ -122,6 +122,47 @@
    "report": "2026-06-30"
   }
  },
+ "603171": {
+  "name": "税友股份",
+  "mkt": "sh",
+  "seg": "沪市主板",
+  "tx": {
+   "name_tx": "税友股份",
+   "close": 40.53,
+   "prev_close": 39.8,
+   "open": 39.81,
+   "amount_yi": 2.877,
+   "time": "20261012161452",
+   "chg_pct": 1.83,
+   "high": 41.18,
+   "low": 39.3,
+   "turnover_pct": 1.76,
+   "pe_tx": "103.31",
+   "amplitude": "4.72",
+   "floatcap_yi": 164.51,
+   "totalcap_yi": 164.51,
+   "pb": "6.46",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2021-06-30",
+   "industry": "信息技术-计算机软件-行业应用软件"
+  },
+  "fin": {
+   "report": "2026-06-30",
+   "revenue_yi": 10.12,
+   "netprofit_yi": 0.94,
+   "roe": 3.65,
+   "eps": 0.23,
+   "gross_margin": 62.2271688509
+  },
+  "kf": {
+   "kf_yi": 0.8943,
+   "kf_yoy": 44.036591398639,
+   "roe_kf": 3.47,
+   "report": "2026-06-30"
+  }
+ },
  "600121": {
   "name": "郑州煤电",
   "mkt": "sh",
@@ -245,6 +286,47 @@
    "report": "2026-06-30"
   }
  },
+ "688271": {
+  "name": "联影医疗",
+  "mkt": "sh",
+  "seg": "科创板",
+  "tx": {
+   "name_tx": "联影医疗",
+   "close": 107.41,
+   "prev_close": 107.78,
+   "open": 107.71,
+   "amount_yi": 3.546,
+   "time": "20261012161500",
+   "chg_pct": -0.34,
+   "high": 108.31,
+   "low": 106.15,
+   "turnover_pct": 0.4,
+   "pe_tx": "50.06",
+   "amplitude": "2.00",
+   "floatcap_yi": 885.23,
+   "totalcap_yi": 885.23,
+   "pb": "4.04",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2022-08-22",
+   "industry": "医药生物-医疗器械-医疗器械"
+  },
+  "fin": {
+   "report": "2026-06-30",
+   "revenue_yi": 70.52,
+   "netprofit_yi": 8.97,
+   "roe": 4.12,
+   "eps": 1.1,
+   "gross_margin": 47.1804815405
+  },
+  "kf": {
+   "kf_yi": 8.2673,
+   "kf_yoy": -14.382839206927,
+   "roe_kf": 3.79,
+   "report": "2026-06-30"
+  }
+ },
  "300454": {
   "name": "深信服",
   "mkt": "sz",
@@ -327,47 +409,6 @@
    "report": "2026-06-30"
   }
  },
- "688271": {
-  "name": "联影医疗",
-  "mkt": "sh",
-  "seg": "科创板",
-  "tx": {
-   "name_tx": "联影医疗",
-   "close": 107.41,
-   "prev_close": 107.78,
-   "open": 107.71,
-   "amount_yi": 3.546,
-   "time": "20261012161500",
-   "chg_pct": -0.34,
-   "high": 108.31,
-   "low": 106.15,
-   "turnover_pct": 0.4,
-   "pe_tx": "50.06",
-   "amplitude": "2.00",
-   "floatcap_yi": 885.23,
-   "totalcap_yi": 885.23,
-   "pb": "4.04",
-   "is_st": false
-  },
-  "listing": {
-   "LISTING_DATE": "2022-08-22",
-   "industry": "医药生物-医疗器械-医疗器械"
-  },
-  "fin": {
-   "report": "2026-06-30",
-   "revenue_yi": 70.52,
-   "netprofit_yi": 8.97,
-   "roe": 4.12,
-   "eps": 1.1,
-   "gross_margin": 47.1804815405
-  },
-  "kf": {
-   "kf_yi": 8.2673,
-   "kf_yoy": -14.382839206927,
-   "roe_kf": 3.79,
-   "report": "2026-06-30"
-  }
- },
  "600276": {
   "name": "恒瑞医药",
   "mkt": "sh",
@@ -406,47 +447,6 @@
    "kf_yi": 37.2959,
    "kf_yoy": -12.714223413637,
    "roe_kf": 6.71,
-   "report": "2026-06-30"
-  }
- },
- "300404": {
-  "name": "博济医药",
-  "mkt": "sz",
-  "seg": "创业板",
-  "tx": {
-   "name_tx": "博济医药",
-   "close": 13.59,
-   "prev_close": 14.11,
-   "open": 14.16,
-   "amount_yi": 3.713,
-   "time": "20261012161445",
-   "chg_pct": -3.69,
-   "high": 14.34,
-   "low": 13.58,
-   "turnover_pct": 9.41,
-   "pe_tx": "100.57",
-   "amplitude": "5.39",
-   "floatcap_yi": 38.8,
-   "totalcap_yi": 52.42,
-   "pb": "4.84",
-   "is_st": false
-  },
-  "listing": {
-   "LISTING_DATE": "2015-04-24",
-   "industry": "医药生物-医疗服务-医疗服务"
-  },
-  "fin": {
-   "report": "2026-06-30",
-   "revenue_yi": 4.54,
-   "netprofit_yi": 0.37,
-   "roe": 3.52,
-   "eps": 0.0973,
-   "gross_margin": 25.844865692
-  },
-  "kf": {
-   "kf_yi": 0.2239,
-   "kf_yoy": 86.774316903618,
-   "roe_kf": 2.12,
    "report": "2026-06-30"
   }
  },
@@ -491,44 +491,44 @@
    "report": "2026-06-30"
   }
  },
- "605366": {
-  "name": "宏柏新材",
-  "mkt": "sh",
-  "seg": "沪市主板",
+ "000975": {
+  "name": "山金国际",
+  "mkt": "sz",
+  "seg": "深市主板",
   "tx": {
-   "name_tx": "宏柏新材",
-   "close": 8.95,
-   "prev_close": 9.94,
-   "open": 9.21,
-   "amount_yi": 8.672,
-   "time": "20261012161452",
-   "chg_pct": -9.96,
-   "high": 9.68,
-   "low": 8.95,
-   "turnover_pct": 12.24,
-   "pe_tx": "-46.22",
-   "amplitude": "7.34",
-   "floatcap_yi": 69.17,
-   "totalcap_yi": 69.17,
-   "pb": "2.58",
+   "name_tx": "山金国际",
+   "close": 23.3,
+   "prev_close": 23.86,
+   "open": 23.73,
+   "amount_yi": 14.539,
+   "time": "20261012161500",
+   "chg_pct": -2.35,
+   "high": 23.83,
+   "low": 22.91,
+   "turnover_pct": 2.46,
+   "pe_tx": "17.03",
+   "amplitude": "3.86",
+   "floatcap_yi": 587.91,
+   "totalcap_yi": 646.0,
+   "pb": "4.06",
    "is_st": false
   },
   "listing": {
-   "LISTING_DATE": "2020-08-12",
-   "industry": "基础化工-化学制品-其他化学制品"
+   "LISTING_DATE": "2000-06-08",
+   "industry": "有色金属-贵金属-黄金"
   },
   "fin": {
    "report": "2026-06-30",
-   "revenue_yi": 8.47,
-   "netprofit_yi": -0.3,
-   "roe": -1.28,
-   "eps": -0.04,
-   "gross_margin": 6.4500647036
+   "revenue_yi": 96.59,
+   "netprofit_yi": 24.16,
+   "roe": 15.45,
+   "eps": 0.8712,
+   "gross_margin": 42.5271551017
   },
   "kf": {
-   "kf_yi": -0.4295,
-   "kf_yoy": -31.756111929115,
-   "roe_kf": -1.8,
+   "kf_yi": 23.8517,
+   "kf_yoy": 49.234311795038,
+   "roe_kf": 15.25,
    "report": "2026-06-30"
   }
  },
@@ -573,6 +573,88 @@
    "report": "2026-06-30"
   }
  },
+ "600206": {
+  "name": "有研新材",
+  "mkt": "sh",
+  "seg": "沪市主板",
+  "tx": {
+   "name_tx": "有研新材",
+   "close": 47.9,
+   "prev_close": 47.95,
+   "open": 46.51,
+   "amount_yi": 30.513,
+   "time": "20261012161449",
+   "chg_pct": -0.1,
+   "high": 48.18,
+   "low": 44.5,
+   "turnover_pct": 7.77,
+   "pe_tx": "143.43",
+   "amplitude": "7.67",
+   "floatcap_yi": 405.5,
+   "totalcap_yi": 405.5,
+   "pb": "9.06",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "1999-03-19",
+   "industry": "有色金属-稀有金属-其他稀有小金属"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 84.62,
+   "netprofit_yi": 2.63,
+   "roe": 6.04,
+   "eps": 0.323,
+   "gross_margin": 8.1009912479
+  },
+  "kf": {
+   "kf_yi": 2.1697,
+   "kf_yoy": 33.195212592995,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "605366": {
+  "name": "宏柏新材",
+  "mkt": "sh",
+  "seg": "沪市主板",
+  "tx": {
+   "name_tx": "宏柏新材",
+   "close": 8.95,
+   "prev_close": 9.94,
+   "open": 9.21,
+   "amount_yi": 8.672,
+   "time": "20261012161452",
+   "chg_pct": -9.96,
+   "high": 9.68,
+   "low": 8.95,
+   "turnover_pct": 12.24,
+   "pe_tx": "-46.22",
+   "amplitude": "7.34",
+   "floatcap_yi": 69.17,
+   "totalcap_yi": 69.17,
+   "pb": "2.58",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2020-08-12",
+   "industry": "基础化工-化学制品-其他化学制品"
+  },
+  "fin": {
+   "report": "2026-06-30",
+   "revenue_yi": 8.47,
+   "netprofit_yi": -0.3,
+   "roe": -1.28,
+   "eps": -0.04,
+   "gross_margin": 6.4500647036
+  },
+  "kf": {
+   "kf_yi": -0.4295,
+   "kf_yoy": -31.756111929115,
+   "roe_kf": -1.8,
+   "report": "2026-06-30"
+  }
+ },
  "688361": {
   "name": "中科飞测",
   "mkt": "sh",
@@ -614,86 +696,45 @@
    "report": "2026-06-30"
   }
  },
- "001378": {
-  "name": "德冠新材",
-  "mkt": "sz",
-  "seg": "深市主板",
+ "688072": {
+  "name": "拓荆科技",
+  "mkt": "sh",
+  "seg": "科创板",
   "tx": {
-   "name_tx": "德冠新材",
-   "close": 21.35,
-   "prev_close": 22.04,
-   "open": 22.01,
-   "amount_yi": 0.839,
-   "time": "20261012161445",
-   "chg_pct": -3.13,
-   "high": 22.05,
-   "low": 21.25,
-   "turnover_pct": 4.61,
-   "pe_tx": "34.81",
-   "amplitude": "3.63",
-   "floatcap_yi": 18.01,
-   "totalcap_yi": 37.01,
-   "pb": "1.97",
+   "name_tx": "XD拓荆科",
+   "close": 633.0,
+   "prev_close": 615.9,
+   "open": 610.0,
+   "amount_yi": 31.603,
+   "time": "20261012161455",
+   "chg_pct": 2.78,
+   "high": 656.93,
+   "low": 596.0,
+   "turnover_pct": 1.76,
+   "pe_tx": "85.03",
+   "amplitude": "9.89",
+   "floatcap_yi": 1798.91,
+   "totalcap_yi": 1849.46,
+   "pb": "14.50",
    "is_st": false
   },
   "listing": {
-   "LISTING_DATE": "2023-10-30",
-   "industry": "基础化工-化学制品-塑料制品"
+   "LISTING_DATE": "2022-04-20",
+   "industry": "电子设备-半导体-集成电路"
   },
   "fin": {
    "report": "2026-06-30",
-   "revenue_yi": 8.85,
-   "netprofit_yi": 0.61,
-   "roe": 3.25,
-   "eps": 0.35,
-   "gross_margin": 16.1211310515
+   "revenue_yi": 29.13,
+   "netprofit_yi": 13.43,
+   "roe": 18.11,
+   "eps": 4.77,
+   "gross_margin": 41.0042896167
   },
   "kf": {
-   "kf_yi": 0.5626,
-   "kf_yoy": 77.577122306469,
-   "roe_kf": 3,
+   "kf_yi": 3.6733,
+   "kf_yoy": 861.919477028539,
+   "roe_kf": 4.95,
    "report": "2026-06-30"
-  }
- },
- "600206": {
-  "name": "有研新材",
-  "mkt": "sh",
-  "seg": "沪市主板",
-  "tx": {
-   "name_tx": "有研新材",
-   "close": 47.9,
-   "prev_close": 47.95,
-   "open": 46.51,
-   "amount_yi": 30.513,
-   "time": "20261012161449",
-   "chg_pct": -0.1,
-   "high": 48.18,
-   "low": 44.5,
-   "turnover_pct": 7.77,
-   "pe_tx": "143.43",
-   "amplitude": "7.67",
-   "floatcap_yi": 405.5,
-   "totalcap_yi": 405.5,
-   "pb": "9.06",
-   "is_st": false
-  },
-  "listing": {
-   "LISTING_DATE": "1999-03-19",
-   "industry": "有色金属-稀有金属-其他稀有小金属"
-  },
-  "fin": {
-   "report": "2026-09-30",
-   "revenue_yi": 84.62,
-   "netprofit_yi": 2.63,
-   "roe": 6.04,
-   "eps": 0.323,
-   "gross_margin": 8.1009912479
-  },
-  "kf": {
-   "kf_yi": 2.1697,
-   "kf_yoy": 33.195212592995,
-   "roe_kf": null,
-   "report": "2026-09-30"
   }
  },
  "603127": {
