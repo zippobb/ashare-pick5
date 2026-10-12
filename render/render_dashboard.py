@@ -174,6 +174,9 @@ def pick_tags(r, extra):
             t.append('<span class="tag w" title="%s">一次性收益抬高利润 −%d（%s）</span>'
                      % (esc(tip), r.get('kf_pen') or 0,
                         '主业改善' if (ky is not None and ky > 0) else '主业下滑'))
+    if r.get('risk_flag'):
+        t.append('<span class="tag w" title="%s">观察池标记：%s（不影响评分）</span>'
+                 % (esc(r.get('risk_reason') or ''), esc(r['risk_flag'])))
     if r.get('high_knife'):
         t.append('<span class="tag w">高位飞刀</span>')
     if r.get('crowd_pen'):
@@ -254,33 +257,48 @@ def render_pool(rows):
     tr = []
     for i, r in enumerate(rows, 1):
         cap = ' <span class="tag gy">限</span>' if r.get('capped_by') else ''
+        flag = (' <span class="tag w" title="%s">%s</span>' % (esc(r.get('risk_reason') or ''),
+                                                              esc(r.get('risk_flag')))
+                if r.get('risk_flag') else '')
         tr.append('<tr><td class="mono">%d</td><td>%s</td><td class="mono">%s</td>'
                   '<td>%s</td><td class="r mono">%s</td><td class="r mono %s">%s</td>'
                   '<td class="r mono">%s</td><td class="r mono">%s</td><td class="r mono">%s</td>'
-                  '<td class="r mono">%s</td><td>%s%s</td></tr>'
+                  '<td class="r mono">%s</td><td>%s%s</td><td>%s</td></tr>'
                   % (i, esc(r.get('name')), esc(r.get('code')), esc(r.get('seg') or ''),
                      fnum(r.get('total'), 1), pct_cls(r.get('chg')), pct_txt(r.get('chg')),
                      fnum(r.get('dma')), fnum(r.get('amt')), fnum(r.get('totalcap'), 1),
                      ('-%d' % (r.get('crowd_pen', 0) + r.get('kf_pen', 0)))
                      if (r.get('crowd_pen') or r.get('kf_pen')) else '—',
-                     theme_cell(r), cap))
+                     theme_cell(r), cap, flag))
     n = sum(1 for r in rows if not r.get('theme'))
-    note = ('<div class="note">题材取自上游人工维护的题材映射表，非算法推断。'
-            '标「未入题材表」的 %d 只不在表内，此处显示行业分类代替；'
-            '其逻辑纯度维度按最低档计分，排名已相应偏低。</div>' % n) if n else ''
+    notes = []
+    if n:
+        notes.append('<div class="note">题材取自上游人工维护的题材映射表，非算法推断。'
+                     '标「未入题材表」的 %d 只不在表内，此处显示行业分类代替；'
+                     '其逻辑纯度维度按最低档计分，排名已相应偏低。</div>' % n)
+    m = sum(1 for r in rows if r.get('risk_flag'))
+    if m:
+        notes.append('<div class="note">规则1（2026-10-12 生效）：观察池内标的不再因利润质量'
+                     '被硬剔除，改打「观察池标记」，%d 只带标记。标记仅提示，'
+                     '不参与评分，对总分与排名无加减影响。</div>' % m)
     return ('<h2>三、候选池全量（%d 只，按总分降序）</h2>'
             '<table><tr><th>#</th><th>名称</th><th>代码</th><th>板块</th><th class="r">总分</th>'
             '<th class="r">涨跌</th><th class="r">距MA20</th><th class="r">成交额亿</th>'
-            '<th class="r">市值亿</th><th>题材</th></tr>%s</table>%s' % (len(rows), ''.join(tr), note))
+            '<th class="r">市值亿</th><th>题材</th><th>标记</th></tr>%s</table>%s'
+            % (len(rows), ''.join(tr), ''.join(notes)))
 
 
 def render_dropped(dropped):
     if not dropped:
-        return '<div class="note">本期无硬约束剔除标的（用户已取消成交额门槛）。</div>'
+        return ('<h2>四、硬约束剔除</h2><div class="note">本期无硬约束剔除标的。'
+                '（规则1 生效后利润质量不再剔除，硬剔除仅剩 ST/*ST、总市值&lt;30亿、成交额不足）</div>')
     tr = ''.join('<tr><td class="mono">%s</td><td>%s</td><td>%s</td><td>%s</td></tr>'
                  % (esc(d.get('code')), esc(d.get('name')), esc(d.get('seg') or ''),
                     esc(d.get('reason'))) for d in dropped)
-    return ('<h2>四、硬约束剔除</h2><table><tr><th>代码</th><th>名称</th><th>板块</th>'
+    return ('<h2>四、硬约束剔除（仅 ST / 市值 / 成交额）</h2>'
+            '<div class="note">规则1（2026-10-12）生效：观察池内标的的利润质量问题'
+            '（双亏、扣非亏损、主业崩塌）已改为标记，不再剔除。</div>'
+            '<table><tr><th>代码</th><th>名称</th><th>板块</th>'
             '<th>原因</th></tr>%s</table>' % tr)
 
 

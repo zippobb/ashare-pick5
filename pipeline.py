@@ -463,22 +463,22 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         #     欣旺达   扣非比 16%，扣非同比 -83.3%、扣非ROE 0.39% —— 主业崩塌，该杀
         #   三者用旧规则是同一结论，显然不成立。
         # 新规则：以"主业是否在赚钱、趋势是向上还是向下"为本，比值为辅。
+        # ── 规则1（2026-10-12 生效）：观察池内标的不做利润质量硬剔除，仅打标记 ──
+        # 标记只用于提示与人工复核，不参与评分计算，对总分/排名/评分条无加减影响。
+        # 保留的硬剔除只有：ST/*ST、总市值<30亿、成交额不足（见上方）。
+        risk_flag, risk_reason = '', ''
         if kfv is None or np_yi <= 0:
-            # 数据缺失或本身亏损，亏损硬性处理见下方统一判定
+            # 数据缺失或本身亏损
             if np_yi <= 0 and kfv is not None and kfv < 0:
-                dropped.append({'code': code, 'name': name, 'seg': seg,
-                                'reason': '归母与扣非双亏（%.2f亿/%.2f亿）' % (np_yi, kfv)})
-                continue
+                risk_flag = '归母与扣非双亏'
+                risk_reason = '归母与扣非双亏（%.2f亿/%.2f亿）' % (np_yi, kfv)
         elif kfv <= 0:
-            dropped.append({'code': code, 'name': name, 'seg': seg,
-                            'reason': '扣非为负 %.2f亿，主营业务亏损' % kfv})
-            continue
+            risk_flag = '扣非亏损'
+            risk_reason = '扣非为负 %.2f亿，主营业务亏损' % kfv
         elif kf_yoy is not None and kf_yoy <= -50 and (roe_kf is not None and roe_kf < 1.0):
             # 主业崩塌：扣非绝对回报近零（扣非ROE<1%）且同比腰斩以上
-            dropped.append({'code': code, 'name': name, 'seg': seg,
-                            'reason': '主业崩塌：扣非同比 %.0f%% 且扣非ROE %.2f%%'
-                                      % (kf_yoy, roe_kf)})
-            continue
+            risk_flag = '主业崩塌'
+            risk_reason = '主业崩塌：扣非同比 %.0f%% 且扣非ROE %.2f%%' % (kf_yoy, roe_kf)
 
         # 未达硬剔除 → 计算利润质量降权（从总分扣，不删标的）
         if kf_ratio is not None and kf_ratio < 0.6:
@@ -534,6 +534,7 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
                         ('扣非亏损' if (kfv is not None and kfv <= 0) else
                          ('利润失真' if (kf_ratio is not None and kf_ratio < 0.6) else
                           ('亏损' if np_yi <= 0 else 'OK')))),
+            'risk_flag': risk_flag, 'risk_reason': risk_reason,
             'high_knife': bool(dma >= 2.0),
             'atrp': round(atr_pct, 2),
             'r250': km.get('r250'), 'r120': km.get('r120'), 'ddh': km.get('ddh'),
