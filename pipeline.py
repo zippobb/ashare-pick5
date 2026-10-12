@@ -301,6 +301,22 @@ def crowd_penalty(r250, atr_pct, dma):
     return best, (tag or '正常')
 
 
+# ---------- 3.1.5) 主业题材统一口径（人工规则 2026-10-12）----------
+# 背景：机器派生题材取东方财富概念列表的第一个热词，由此出现偏离主业的标签：
+#   贵州茅台 -> 味蕾经济   五粮液/汾酒/老窖 -> 味蕾经济
+#   联影医疗 -> 脑机接口   迈瑞医疗 -> 精准诊断   福瑞医科 -> 创新医疗服务
+#   片仔癀/云南白药 -> 特色药
+# 规则：通达信细分行业（theme_classification.industry_l3）命中下表时，
+#       题材强制统一为该主业词，并视为已人工确认（不再显示"题材待修正"）。
+# 优先级：theme/theme_override.json（人工单票） > 本表（行业口径） > 机器派生。
+# 新增行业只需往本表加一行；未来新入池的同行业标的自动生效。
+INDUSTRY_THEME_NORMALIZE = {
+    u"白酒\u2162": u"白酒",        # 白酒Ⅲ：以白酒生产为主业
+    u"医疗设备": u"医疗器械",       # 医疗器械（设备）
+    u"医疗耗材": u"医疗器械",       # 医疗器械（耗材）
+    u"中药\u2162": u"中药",        # 中药Ⅲ：中药 / 中药材
+}
+
 # ---------- 3.2) 产业链集中度上限 ----------
 # 教训：9/30 的 Top5 里 4 只在同一条 AI 算力 β 上，等同单票重仓，今日同跌。
 # 注意：顺序敏感，'光芯片'含'芯片'，必须排在'半导体'之前
@@ -401,6 +417,32 @@ def roe_score(r):
     return 25
 
 
+# 全市场通达信细分行业字典（代码 -> 行业），仅在 industry_l3 缺失时兜底。
+# 场景：人工229表条目（classification_status=user_confirmed）不带 industry_l3，
+#       例如联影医疗 688271.SH 行业实为"医疗设备"，但表里只有 primary_theme=脑机接口。
+INDUSTRY_L3_FALLBACK = {}
+
+
+def load_industry_map():
+    """读 theme/theme_market_full.csv 建行业字典。任何异常都 fail open（返回空表）。"""
+    import csv as _csv
+    m = {}
+    for p in ('theme/theme_market_full.csv', '/opt/ashare-pick5/theme/theme_market_full.csv'):
+        try:
+            if not os.path.exists(p):
+                continue
+            with open(p, encoding='utf-8-sig') as f:
+                for row in _csv.DictReader(f):
+                    code = (row.get(u'\u4ee3\u7801') or '').strip()
+                    ind = (row.get(u'\u884c\u4e1a') or '').strip()
+                    if code and ind:
+                        m[code] = ind
+            break
+        except Exception as e:
+            log(u'\u884c\u4e1a\u5b57\u5178\u8bfb\u53d6\u5931\u8d25 %s: %s' % (p, e))
+    return m
+
+
 def load_theme_override(cfg):
     """人工修正表：{code: {theme, biz, fact}}，优先级最高。"""
     for p in (cfg.get('theme_override_path') or '', 'theme/theme_override.json'):
@@ -436,6 +478,11 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         fact = tc.get('fact_summary')
         need_review = bool(tc.get('needs_manual_review'))
         review_reason = tc.get('review_reason') or ''
+        # 主业题材统一口径：行业命中规则表时强制使用主业词（见 INDUSTRY_THEME_NORMALIZE）
+        _l3 = (tc.get('industry_l3') or INDUSTRY_L3_FALLBACK.get(code)
+              or INDUSTRY_L3_FALLBACK.get(bare) or '')
+        norm_theme = INDUSTRY_THEME_NORMALIZE.get(_l3)
+        theme_src = tc.get('classification_status') or 'machine_derived'
         ov = (ovr or {}).get(code) or (ovr or {}).get(bare) or {}
         if ov:
             if ov.get('theme'):
@@ -444,6 +491,11 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
                 biz = ov['biz']
             if ov.get('fact'):
                 fact = ov['fact']
+            theme_src = 'manual_override'
+            need_review, review_reason = False, ''
+        elif norm_theme:
+            theme = norm_theme
+            theme_src = 'industry_normalized'
             need_review, review_reason = False, ''
         dma = c.get('distance_ma20_atr') or 0
         roe = f.get('roe')
@@ -528,7 +580,7 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             'r1': round(c.get('return_1d_pct') or 0, 2), 'r5': round(c.get('return_5d_pct') or 0, 2),
             'r10': round(c.get('return_10d_pct') or 0, 2), 'r20': round(c.get('return_20d_pct') or 0, 2),
             'theme': theme, 'biz': biz, 'fact': fact,
-            'theme_src': ('manual_override' if ov else tc.get('classification_status')),
+            'theme_src': theme_src,
             'theme_review': need_review, 'theme_reason': review_reason,
             'roe': roe, 'np': np_yi, 'rev': f.get('revenue_yi') or 0, 'report': f.get('report'),
             'gm': round(f.get('gross_margin') or 0, 1),
@@ -748,6 +800,10 @@ def main():
 
     ovr = load_theme_override(cfg)
     log('题材人工修正表 %d 条' % len(ovr))
+    _imap = load_industry_map()
+    INDUSTRY_L3_FALLBACK.clear()
+    INDUSTRY_L3_FALLBACK.update(_imap)
+    log('行业字典 %d 条' % len(INDUSTRY_L3_FALLBACK))
     rows, dropped = score(cands, tx, listing, fin, kf, cfg.get('min_amount_yi', 0), ovr, kl)
     log('打分完成 候选%d 剔除%d' % (len(rows), len(dropped)))
     hit = [r for r in rows[:12] if r['crowd_pen'] > 0]
