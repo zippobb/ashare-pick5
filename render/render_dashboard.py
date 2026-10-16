@@ -185,6 +185,20 @@ def pick_tags(r, extra):
                     r['crowd_pen'], esc(r.get('crowd_tag') or '')))
     if r.get('cluster'):
         t.append('<span class="tag b">产业链：%s</span>' % esc(r['cluster']))
+    if r.get('rot_state') and r.get('rot_state') != '-':
+        t.append('<span class="tag %s" title="题材轮动口径：%s｜今日%+.2f%% 3日%+.2f%%">题材轮动：%s</span>'
+                 % (STATE_CLS.get(r.get('rot_state'), 'gy'), esc(r.get('rot_theme') or ''),
+                    r.get('rot_ret1') or 0, r.get('rot_ret3') or 0, esc(r['rot_state'])))
+    _stg = stage_txt(r)
+    if _stg:
+        t.append('<span class="tag %s" title="题材阶段：%s｜连涨 %s 天｜本轮 %+.1f%%｜距MA20 %+.1f%%｜60日位 %.0f%%｜趋势 %s">题材阶段：%s</span>'
+                 % ('w' if r.get('rot_topping') else
+                    ('b' if r.get('rot_stage') == '首涨' else 'gy'),
+                    _stg, r.get('rot_streak') or 0, r.get('rot_run_gain') or 0,
+                    r.get('rot_dist_ma20') or 0, (r.get('rot_pos60') or 0) * 100,
+                    esc(r.get('rot_trend') or '-'), esc(_stg)))
+    if r.get('stage_flag'):
+        t.append('<span class="tag w" title="%s">末端风险</span>' % esc(r['stage_flag']))
     for e in extra or []:
         t.append('<span class="tag w">%s</span>' % esc(e))
     return ''.join(t)
@@ -216,7 +230,8 @@ def render_pick(r, i, narr):
            esc(r.get('seg') or '-'), pick_tags(r, nd.get('tags_extra')),
            fnum(r.get('close')), pct_cls(chg), pct_txt(chg)))
     b1 = (bar('5日动量', r.get('sp', 0), 20, True) + bar('基本面', r.get('sf', 0), 30, True)
-          + bar('逻辑纯度', r.get('sb', 0), 20, True) + bar('技术', r.get('st', 0), 30, True))
+          + bar('逻辑纯度', r.get('sb', 0), 20, True) + bar('技术', r.get('st', 0), 30, True)
+          + (bar('题材内相对强势', r.get('srs', 0), 30, True) if r.get('srs') else ''))
     b2 = (bar('技术总分', r.get('tech', 0), 30) + bar('结构健康', r.get('sh') or 0, 3)
           + bar('趋势结构', r.get('tsc') or 0, 8) + bar('量价', r.get('vp', 0), 6)
           + bar('市场契合', r.get('mf', 0), 5) + bar('相对强度', r.get('mrs', 0), 5))
@@ -253,6 +268,165 @@ def render_pick(r, i, narr):
     return '<div class="pick">%s%s</div>\n' % (hd, body)
 
 
+ROT_RENDER_MARK_20261015 = True
+STATE_CLS = {'\u52a0\u901f': 'b', '\u542f\u52a8': 'b', '\u5ef6\u7eed': '',
+             '\u8f6c\u8dcc': 'w', '\u9000\u6f6e': 'gy', '\u9707\u8361': 'gy', '-': 'gy'}
+STATE_TIP = {
+    '\u52a0\u901f': '\u4eca\u65e5\u6da8\u5e45\u6392\u540d\u524d 20%\u4e14\u52a0\u901f\u5ea6\u6392\u540d\u524d 20%\uff1a\u6da8\u52bf\u6b63\u5728\u52a0\u5feb',
+    '\u542f\u52a8': '\u4eca\u65e5\u5f3a\u4f46\u8fd1 3 \u65e5\u6392\u540d\u4e0d\u9ad8\uff1a\u521a\u521a\u542f\u52a8',
+    '\u5ef6\u7eed': '\u4eca\u65e5\u4e0e\u8fd1 3 \u65e5\u5747\u5c45\u524d 40%\uff1a\u6da8\u52bf\u5ef6\u7eed',
+    '\u8f6c\u8dcc': '\u8fd1 5 \u65e5\u4ecd\u6da8\u4f46\u4eca\u65e5\u8f6c\u8dcc\uff1a\u9996\u6b21\u56de\u8c03\uff0c\u56de\u6d4b\u4e2d\u5e76\u975e\u7acb\u5373\u89c1\u9876',
+    '\u9000\u6f6e': '\u8fd1 3 \u65e5\u6392\u540d\u57ab\u5e95 20%\uff1a\u8f6e\u52a8\u5df2\u8d70\u5b8c',
+    '\u9707\u8361': '\u65e0\u660e\u786e\u8f6e\u52a8\u4fe1\u53f7',
+}
+
+
+def rot_state_tag(st):
+    st = st or '-'
+    return '<span class="tag %s" title="%s">%s</span>' % (
+        STATE_CLS.get(st, 'gy'), esc(STATE_TIP.get(st, '')), esc(st))
+
+
+STAGE_CLS = {'首涨': 'b', '回落': 'gy', '退潮': 'gy', '转跌': 'w'}
+
+
+def stage_txt(r):
+    """题材阶段短文字：首涨 / 连涨N天 / 连涨N天·末端。"""
+    stg = r.get('rot_stage')
+    if not stg or stg == '-':
+        return ''
+    if stg.endswith('末端') or r.get('rot_topping'):
+        return stg + ' ⚠'
+    return stg
+
+
+def rot_stage_tag(r):
+    stg = r.get('rot_stage') or '-'
+    if stg == '-':
+        return '<span class="tag gy">-</span>'
+    if r.get('rot_topping'):
+        return '<span class="tag w" title="连涨 %s 天，本轮 +%s%%；震荡/下跌行情中趋势末端板块容易买在高点">%s ⚠</span>' % (
+            r.get('rot_streak') or 0, fnum(r.get('rot_run_gain'), 1), esc(stg))
+    key = ('b' if stg == '首涨' else ('gy' if stg in ('回落', '退潮', '转跌') else ''))
+    return '<span class="tag %s">%s</span>' % (key, esc(stg))
+
+
+def render_rotation(rot):
+    """今日题材轮动（精简版）。"""
+    if not rot or not rot.get('trade_date'):
+        return ''
+    mode = rot.get('mode') or 'OFF'
+    hot = (rot.get('hot_top10') or [])[:8]
+    cold = (rot.get('cold_bottom5') or [])[:5]
+    topping = (rot.get('topping') or [])[:6]
+    mstate = rot.get('market_state') or '-'
+    focus_names = set((f or {}).get('theme') for f in (rot.get('focus') or []))
+
+    boxes = [
+        ('市场状态', mstate, '近20日 %s%%' % fnum(rot.get('market_ret20'), 1)),
+        ('上涨题材', '%s / %s' % (rot.get('n_up_themes') or 0, rot.get('n_themes') or 0),
+         '全市场等权 %s' % pct_txt(rot.get('market_ret1'))),
+        ('本期模式', '题材优先' if mode == 'THEME' else ('软加分' if mode == 'SOFT' else '回退纯 D'),
+         ('热题材候选 ' + str(rot.get('n_cand', 0)) + ' 只') if mode == 'THEME'
+         else ('0~30 分题材加分' if mode == 'SOFT' else '热题材在池内不足 5 只')),
+    ]
+    bx = []
+    for k, v, d in boxes:
+        bx.append('<div class="sbox"><div class="k">' + esc(k) + '</div>'
+                  '<div class="v ' + pct_cls(v if isinstance(v, (int, float)) else None) + '">'
+                  + esc(v) + '</div><div class="d">' + esc(d) + '</div></div>')
+
+    tr = []
+    for ix, h in enumerate(hot, 1):
+        nm = esc(h.get('theme'))
+        if h.get('theme') in focus_names:
+            nm = '<b>' + nm + '</b> <span class="tag b">本期主攻</span>'
+        tip = '加速度 %s%% · 上涨家数 %s%% · 本轮涨幅 %s%% · 趋势 %s' % (
+            fnum(h.get('acc'), 2), fnum((h.get('up1') or 0) * 100, 0),
+            fnum(h.get('run_gain'), 1), esc(h.get('trend') or '-'))
+        tr.append('<tr><td class="mono">' + str(ix) + '</td><td title="' + tip + '">' + nm + '</td>'
+                  '<td>' + rot_stage_tag(h) + '</td>'
+                  '<td class="r mono ' + pct_cls(h.get('ret1')) + '">' + pct_txt(h.get('ret1')) + '</td>'
+                  '<td class="r mono ' + pct_cls(h.get('ret3')) + '">' + pct_txt(h.get('ret3')) + '</td>'
+                  '<td class="r mono ' + pct_cls(h.get('dist_ma20')) + '">' + pct_txt(h.get('dist_ma20')) + '</td>'
+                  '<td class="r mono">' + str(h.get('n_pool') or 0) + '</td></tr>')
+
+    trt = []
+    for h in topping:
+        trt.append('<tr><td>' + esc(h.get('theme')) + '</td>'
+                   '<td class="r mono">' + str(h.get('up_streak') or 0) + '</td>'
+                   '<td class="r mono ' + pct_cls(h.get('run_gain')) + '">' + pct_txt(h.get('run_gain')) + '</td>'
+                   '<td class="r mono ' + pct_cls(h.get('dist_ma20')) + '">' + pct_txt(h.get('dist_ma20')) + '</td>'
+                   '<td class="r mono">' + str(h.get('n_pool') or 0) + '</td></tr>')
+
+    trc = []
+    for c in cold:
+        trc.append('<tr><td>' + esc(c.get('theme')) + '</td>'
+                   '<td class="r mono ' + pct_cls(c.get('ret3')) + '">' + pct_txt(c.get('ret3')) + '</td>'
+                   '<td class="r mono ' + pct_cls(c.get('dist_ma20')) + '">' + pct_txt(c.get('dist_ma20')) + '</td>'
+                   '<td class="r mono">' + str(c.get('n_pool') or 0) + '</td></tr>')
+
+    out = []
+    out.append('<h2>二、今日题材轮动</h2>')
+    out.append('<div class="snap">' + ''.join(bx) + '</div>')
+    out.append('<table><tr><th>#</th><th>题材</th><th>阶段</th>'
+               '<th class="r">今日</th><th class="r">3日</th>'
+               '<th class="r">距MA20</th><th class="r">池内</th></tr>' + ''.join(tr) + '</table>')
+    if trt:
+        out.append('<div class="sub" style="margin:14px 0 4px">'
+                   '<b>上涨趋势末端</b>（连涨 &ge;' + str(rot.get('top_streak') or 4)
+                   + ' 天，' + esc(mstate) + '中容易买在高点）</div>')
+        out.append('<table><tr><th>题材</th><th class="r">连涨</th>'
+                   '<th class="r">本轮涨幅</th><th class="r">距MA20</th>'
+                   '<th class="r">池内</th></tr>' + ''.join(trt) + '</table>')
+    out.append('<div class="sub" style="margin:14px 0 4px"><b>退潮题材</b>（轮动已走完，回避）</div>')
+    out.append('<table><tr><th>题材</th><th class="r">3日</th>'
+               '<th class="r">距MA20</th><th class="r">池内</th></tr>' + ''.join(trc) + '</table>')
+    out.append('<div class="note"><b>怎么读：</b>「阶段」= 首涨 / 连涨第 N 天 / 末端（连涨&ge;4 天）；'
+               '热度用<b>全市场</b>成员算，不设成交额门槛；'
+               '三级级联 RET1&times;3 &rarr; ACC&times;5 &rarr; RET10&times;5，'
+               '池内凑不出 5 只或普跌日（全市场&le;-1%）则回退纯 D。'
+               '回测：题材优先 +1.08%/期 vs 纯 D +0.47%/期；'
+               '题材内相对强势 +1.34%/期，题材内随机仅 +0.39%（不显著）——'
+               '<b>题材只负责缩小范围，alpha 来自筛完之后怎么选</b>。</div>')
+    out.append(render_universe_scan(rot.get('universe_scan') or {}))
+    return '\n'.join(out)
+
+
+def render_universe_scan(us):
+    """全市场题材扫描：只显示 ★推荐的前 10 只，7 列。仅供观察，不自动入池。"""
+    if not us or not us.get('candidates'):
+        return ''
+    uni = us.get('universe') or {}
+    rec = [x for x in us['candidates'] if x.get('recommend')]
+    if not rec:
+        return ''
+    rows = []
+    for x in rec[:10]:
+        rows.append('<tr><td class="mono">' + esc(x.get('code')) + '</td>'
+                    '<td>' + esc(x.get('name')) + '</td>'
+                    '<td>' + esc(x.get('theme')) + '</td>'
+                    '<td class="r mono ' + pct_cls(x.get('rs')) + '">' + pct_txt(x.get('rs')) + '</td>'
+                    '<td class="r mono ' + pct_cls(x.get('mom20')) + '">' + pct_txt(x.get('mom20')) + '</td>'
+                    '<td class="r mono">' + fnum(x.get('elast'), 0) + '</td>'
+                    '<td>' + esc(x.get('quality')) + '</td></tr>')
+    out = []
+    out.append('<div class="sub" style="margin:16px 0 6px">'
+               '<b>热题材内值得关注的全市场个股</b>（★推荐 %d 只，显示前 10；'
+               '仅供观察，<b>不自动入池</b>）</div>' % len(rec))
+    out.append('<table><tr><th>代码</th><th>名称</th><th>题材</th>'
+               '<th class="r">相对强势</th><th class="r">20日%</th>'
+               '<th class="r">弹性</th><th>质量</th></tr>' + ''.join(rows) + '</table>')
+    out.append('<div class="note">全市场 %d 只 &rarr; 剔ST %d &rarr; %d 只；'
+               '取「首涨/连涨%d~%d天」的热题材，按<b>题材内相对强势</b>每题材挑 %d 只。'
+               '&#9733; = 弹性&ge;18 且非亏损。题材标签为机器派生，可能偏离主业，'
+               '是否入池需人工核实。</div>'
+               % (uni.get('base') or 0, uni.get('st_removed') or 0, uni.get('final') or 0,
+                  us.get('stage_filter', {}).get('early_min', 1),
+                  us.get('stage_filter', {}).get('early_max', 3), us.get('per_theme') or 5))
+    return '\n'.join(out)
+
+
 def render_pool(rows):
     tr = []
     for i, r in enumerate(rows, 1):
@@ -262,14 +436,15 @@ def render_pool(rows):
                 if r.get('risk_flag') else '')
         tr.append('<tr><td class="mono">%d</td><td>%s</td><td class="mono">%s</td>'
                   '<td>%s</td><td class="r mono">%s</td><td class="r mono %s">%s</td>'
-                  '<td class="r mono">%s</td><td class="r mono">%s</td><td class="r mono">%s</td>'
-                  '<td class="r mono">%s</td><td>%s%s</td><td>%s</td></tr>'
+                  '<td class="r mono">%s</td><td class="r mono">%s</td>'
+                  '<td class="r mono">%s</td><td>%s</td><td>%s%s</td><td>%s</td></tr>'
                   % (i, esc(r.get('name')), esc(r.get('code')), esc(r.get('seg') or ''),
                      fnum(r.get('total'), 1), pct_cls(r.get('chg')), pct_txt(r.get('chg')),
-                     fnum(r.get('dma')), fnum(r.get('amt')), fnum(r.get('totalcap'), 1),
+                     fnum(r.get('dma')), fnum(r.get('totalcap'), 1),
                      ('-%d' % (r.get('crowd_pen', 0) + r.get('kf_pen', 0)))
                      if (r.get('crowd_pen') or r.get('kf_pen')) else '—',
-                     theme_cell(r), cap, flag))
+                     theme_cell(r), rot_state_tag(r.get('rot_state')) + ' ' + rot_stage_tag(r),
+                     cap, flag))
     n = sum(1 for r in rows if not r.get('theme'))
     notes = []
     if n:
@@ -281,21 +456,21 @@ def render_pool(rows):
         notes.append('<div class="note">规则1（2026-10-12 生效）：观察池内标的不再因利润质量'
                      '被硬剔除，改打「观察池标记」，%d 只带标记。标记仅提示，'
                      '不参与评分，对总分与排名无加减影响。</div>' % m)
-    return ('<h2>三、候选池全量（%d 只，按总分降序）</h2>'
+    return ('<h2>四、候选池全量（%d 只，按总分降序）</h2>'
             '<table><tr><th>#</th><th>名称</th><th>代码</th><th>板块</th><th class="r">总分</th>'
-            '<th class="r">涨跌</th><th class="r">距MA20</th><th class="r">成交额亿</th>'
-            '<th class="r">市值亿</th><th>题材</th><th>标记</th></tr>%s</table>%s'
+            '<th class="r">涨跌</th><th class="r">距MA20</th>'
+            '<th class="r">市值亿</th><th>题材</th><th>轮动状态</th><th>标记</th></tr>%s</table>%s'
             % (len(rows), ''.join(tr), ''.join(notes)))
 
 
 def render_dropped(dropped):
     if not dropped:
-        return ('<h2>四、硬约束剔除</h2><div class="note">本期无硬约束剔除标的。'
+        return ('<h2>五、硬约束剔除</h2><div class="note">本期无硬约束剔除标的。'
                 '（规则1 生效后利润质量不再剔除，硬剔除仅剩 ST/*ST、总市值&lt;30亿、成交额不足）</div>')
     tr = ''.join('<tr><td class="mono">%s</td><td>%s</td><td>%s</td><td>%s</td></tr>'
                  % (esc(d.get('code')), esc(d.get('name')), esc(d.get('seg') or ''),
                     esc(d.get('reason'))) for d in dropped)
-    return ('<h2>四、硬约束剔除（仅 ST / 市值 / 成交额）</h2>'
+    return ('<h2>五、硬约束剔除（仅 ST / 市值）</h2>'
             '<div class="note">规则1（2026-10-12）生效：观察池内标的的利润质量问题'
             '（双亏、扣非亏损、主业崩塌）已改为标记，不再剔除。</div>'
             '<table><tr><th>代码</th><th>名称</th><th>板块</th>'
@@ -308,15 +483,15 @@ def render_liquidity(rows):
                  '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
                  % (esc(r.get('name')), esc(r.get('code')), fnum(r.get('amt')),
                     fnum(r.get('turnover')), fnum(r.get('totalcap'), 1)) for r in top)
-    return ('<h2>五、流动性参考（成交额最低 10 只，仅自查用，不参与打分）</h2>'
+    return ('<h2>六、流动性参考（成交额最低 10 只，仅自查用，不参与打分）</h2>'
             '<table><tr><th>名称</th><th>代码</th><th class="r">成交额亿</th>'
             '<th class="r">换手%%</th><th class="r">市值亿</th></tr>%s</table>' % tr)
 
 
 def render_foot(narr):
     return ('<div class="disc">%s<br><br>本页由数据管线自动生成，'
-            '仅供本人交易参考，不构成投资建议。评分框架 v4：5 日动量 20 + 基本面 30 + 逻辑纯度 20 + 技术 30，'
-            '不含流动性维度；成交额不参与打分、不影响排名。<br>'
+            '仅供本人交易参考，不构成投资建议。评分框架 v5：5日动量 20 + 基本面 30 + 逻辑纯度 20 + 技术 30'
+            ' + 题材内相对强势 30（仅题材优先模式生效），不含流动性维度；成交额不参与打分、不影响排名。<br>'
             '公式与阈值为实验参数，未做历史回测，不保证未来有效。</div>'
             % (narr.get('foot') or ''))
 
@@ -333,10 +508,11 @@ def render(data_dir, narrative_path, out_path):
     gen = narr.get('generated_at_label') or (market.get('generated_at') or '')[:16].replace('T', ' ')
 
     body = [render_head(td, market, gen), render_alert(narr), render_snap(market.get('env') or {}),
-            '<h2>二、今日五个标的（按确定性排名）</h2>',
+            render_rotation(market.get('rotation') or {}),
+            '<h2>三、今日五个标的（按确定性排名）</h2>',
             '<div class="sub" style="margin-bottom:12px">排名即优先级。'
             '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b>'
-            '评分框架 v4：5 日动量 20（近 5 日涨跌幅池内百分位）+ 基本面 30 + 逻辑纯度 20 + 技术 30 = 100（不含流动性维度）。</div>']
+            '评分框架 v4：5日动量 20 + 基本面 30 + 逻辑纯度 20 + 技术 30 = 100（不含流动性维度）。</div>']
     body.append(
         '<div class="legend"><b>色条图例（按得分率着色，与涨跌的红/绿配色无关）：</b>'
         '<span><i class="qd" style="background:#0f8a4a"></i>优 · ≥85%</span>'
@@ -349,7 +525,6 @@ def render(data_dir, narrative_path, out_path):
     if narr.get('summary'):
         body.append('<div class="note"><b>操作提示：</b>%s</div>' % narr['summary'])
     body.append(render_pool(scored))
-    body.append(render_liquidity(scored))
     body.append(render_dropped(dropped))
     body.append(render_foot(narr))
 

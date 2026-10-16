@@ -271,6 +271,11 @@ def fetch_kline_metrics(cands, trade_date, need=260):
             'r120': round((c / cl[-121] - 1) * 100, 1) if len(cl) > 121 else None,
             'ddh': round((1 - c / max(hi[-250:])) * 100, 1),
             'bars': len(rows),
+            # 规则5（2026-10-13）：5日动量，供"位置维→动量维"（方案D）使用
+            'mom5': round((c / cl[-6] - 1) * 100, 2) if len(cl) > 6 else None,
+            # 规则6（2026-10-15）：3 日动量，供「题材内相对强势」打分
+            'mom3': round((c / cl[-4] - 1) * 100, 2) if len(cl) > 4 else None,
+            # 规则5（2026-10-13）：5日动量，供"位置维→动量维"（方案D）使用
         }
         time.sleep(0.25)
     return out
@@ -480,6 +485,107 @@ def load_industry_map():
     return m
 
 
+def load_theme_effective():
+    """个股 -> 重映射后的有效题材。
+
+    来源 /opt/stock-automation/scanner/config/stock_theme_effective.json
+    （由 ops 侧题材体检生成：666 个题材里 186 个可做轮动主线，其余为宽口径 /
+      不联动 / 从不成为主线 / 追进去无超额 / 成员过少）。
+    缺失时返回空表，题材逻辑静默退回原值，不影响主流程。
+    """
+    try:
+        return json.load(open('/opt/stock-automation/scanner/config/stock_theme_effective.json', encoding='utf-8'))
+    except Exception:
+        return {}
+
+
+EFF_THEME = load_theme_effective()
+
+
+# ── 规则6（2026-10-15）：题材轮动参与每日选股 ──────────────────────────────
+# 旧口径「题材等权 10 日动量」太滞后（题材涨势常只有 3~5 日）。341 天长样本
+# （观察池口径配对 alpha，未来 5 日，对照同池随机 5 只）实测：
+#   现行纯 D（不做轮动）          +0.47%/期  t=+1.11
+#   RET1（昨日题材涨幅）×Top3    +1.07%/期  t=+2.55   ← 覆盖 48%
+#   ACC（1日−前5日均值）×Top5    +0.90%/期  t=+2.30   ← 覆盖 62%
+#   三级级联（RET1→ACC→RET10）   +1.08%/期  t=+2.74   ← 覆盖 90%，落地用这个
+# 前半段/后半段、涨市/跌市、池内半池交叉检验均一致为正；跌市改善最大
+# （纯 D −0.13% → 题材优先 +0.86%~+0.98%）。
+# 题材热度必须用**全市场**成员算（池内每题材只有 1~2 只，噪音极大且偏小盘），
+# 再用池内标的兑现。快照由 ops/theme_rotation.py 每日产出。
+# ROTATION_MARK_20261015
+ROT_JSON = '/opt/stock-automation/scanner/config/theme_rotation_latest.json'
+
+
+def load_theme_rotation():
+    """题材轮动快照。任何异常一律 fail open（返回空表 → 退回现行纯 D 选股）。"""
+    try:
+        return json.load(open(ROT_JSON, encoding='utf-8'))
+    except Exception:
+        return {}
+
+
+ROT = load_theme_rotation()
+
+
+# 题材内相对强势满分 30（个股 3 日涨幅 − 题材 3 日涨幅，候选集内百分位）
+ROT_RS_MAX = 30.0
+# 三级级联：(排序字段名, TopK) —— 字段见 theme_rotation.py 的 rank / rank_acc / rank_r10
+ROT_STEPS = (('rank', 3), ('rank_acc', 5), ('rank_r10', 5))
+ROT_MIN_CAND = 5
+# 硬过滤未命中时的软加分满分（题材热度横截面分位 × 本值）。
+# 341 天回测（观察池口径，w=30，热度=z(昨日涨幅)+z(加速度)+z(上涨家数占比)）：
+#   纯 D +0.47%/期(t=1.11) → 软加分 +0.84%/期(t=2.33)。弱于硬过滤(+1.08%)但覆盖率 100%。
+ROT_SOFT_W = 30.0
+# 普跌日关闭：当日全市场等权跌幅达到此值时不启用题材轮动（退回纯 D）。
+# 341 天回测：大跌日（≤−1%）软加分 −0.56%/期、硬过滤 −0.28%/期，均无预测力。
+ROT_OFF_MKT = -1.0
+
+
+def theme_priority(rows, rot, min_cand=ROT_MIN_CAND, steps=ROT_STEPS):
+    """热题材优先：把候选限制在热题材内，并按「题材内相对强势」加分重排。
+
+    返回 (mode, hot_themes, cand_codes)。
+      mode = 'THEME'    命中热题材且池内候选 >= min_cand，rows 内已写好 srs/total_rot
+            'FALLBACK' 三轮都没有足够候选，退回现行纯 D（不改动任何分数）
+            'OFF'      无快照，同上
+    """
+    th = rot.get('themes') or {}
+    if not th:
+        return 'OFF', [], None
+    by_th = {}
+    for r in rows:
+        by_th.setdefault(r.get('rot_theme') or '', []).append(r)
+    for key, k in steps:
+        order = sorted([t for t in th if (th[t] or {}).get(key)],
+                       key=lambda t: th[t][key])
+        hot = order[:k]
+        cand = [r for t in hot for r in by_th.get(t, [])]
+        if len(cand) < min_cand:
+            continue
+        # 题材内相对强势：个股近 3 日涨幅 − 所属题材近 3 日涨幅
+        raw = {}
+        for r in cand:
+            t3 = (th.get(r.get('rot_theme')) or {}).get('ret3')
+            m3 = r.get('mom3')
+            if m3 is None or t3 is None:
+                continue
+            raw[r['code']] = float(m3) - float(t3)
+        vals = sorted(raw.values())
+        n = len(vals)
+        for r in cand:
+            if r['code'] in raw and n:
+                v = raw[r['code']]
+                lo = sum(1 for x in vals if x < v)
+                eq = sum(1 for x in vals if x == v)
+                r['srs'] = round(ROT_RS_MAX * (lo + 0.5 * eq) / n, 1)
+            else:
+                r['srs'] = round(ROT_RS_MAX * 0.5, 1)   # 缺数据按中位
+            r['total_rot'] = round(r['total'] + r['srs'], 1)
+        return 'THEME', hot, [r['code'] for r in cand]
+    return 'FALLBACK', [], None
+
+
 def load_theme_override(cfg):
     """人工修正表：{code: {theme, biz, fact}}，优先级最高。"""
     for p in (cfg.get('theme_override_path') or '', 'theme/theme_override.json'):
@@ -492,6 +598,34 @@ def load_theme_override(cfg):
 
 
 def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
+    # ── 规则5（2026-10-13）：位置维 → 5日动量维（方案 D）──
+    # 341 天长样本（297 期有效，观察池口径配对 alpha）：D 是唯一显著方案 +0.92%/期（t=2.18）。
+    #   上涨市 D(+1.26) ≈ A(+1.23) 都显著；下跌市 D(+0.44) 远好于 A(−0.24，全表最差)。
+    # 回测口径 = 弹性门槛后候选池内的横截面百分位排名（越高越好），此处保持一致。
+    # 注意：动量是追涨方向，与下方 crowd_penalty（高位高波动扣分）天然对冲，
+    #       两者同时保留，可抑制纯追高，不要删掉拥挤度扣分。
+    MOM_PCT = {}
+    _elig = []
+    for bare, code, name, pfx, mkt, seg, c in cands:
+        q = tx.get(bare) or {}
+        mc = q.get('totalcap_yi') or 0
+        amt = q.get('amount_yi') or 0
+        if q.get('is_st') or (mc and mc < 30) or (min_amt and amt and amt < min_amt):
+            continue
+        _el = ELASTICITY.get(code) or ELASTICITY.get(bare)
+        if _el is not None and _el < ELAST_MIN:
+            continue
+        _v = ((kl or {}).get(bare) or {}).get('mom5')
+        if _v is None:
+            continue
+        try:
+            _elig.append((bare, float(_v)))
+        except (TypeError, ValueError):
+            pass
+    _elig.sort(key=lambda kv: kv[1])
+    _nn = len(_elig)
+    for _i, (_b, _v) in enumerate(_elig):
+        MOM_PCT[_b] = (_i + 1) / float(_nn) if _nn else 0.5
     rows, dropped = [], []
     for bare, code, name, pfx, mkt, seg, c in cands:
         q = tx.get(bare) or {}
@@ -516,6 +650,20 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         tc = c.get('theme_classification') or {}
         biz = tc.get('business_realization')
         theme = tc.get('primary_theme')
+        # ── 第 0 层：无效题材重映射（2026-10-14）──
+        # 东财机器派生的主题材里大量是失真标签：宽口径 WIDE（"通信技术"338只跨74行业、
+        # "电池技术"472只跨148行业）或不联动 LOOSE。scanner 侧 _theme_pick 只按
+        # "成员>=100 + 泛化词表"粗筛，剩下的往往是次热的次要概念，仍然偏离主业
+        # （实测：格力→液冷服务器、中国神华→铁路基建、海天/双汇→味蕾经济）。
+        # 这里把机器派生值换成有效性表里重映射后的主业题材：
+        # 格力→空调、中国神华→动力煤、海天→调味发酵品Ⅲ、宁德→锂电池。
+        # 只对 machine_derived 生效；人工层（override / 229 表）优先级更高，不动。
+        # 341 天回测：限定有效题材 + 单归属后，板块轮动配对 alpha
+        # 由 +0.56%/期(t=1.43,不显著) 提升到 +1.18%/期(t=2.92)。
+        if (tc.get('classification_status') or 'machine_derived') == 'machine_derived':
+            _ef = EFF_THEME.get(code) or EFF_THEME.get(bare) or {}
+            if _ef.get('primary_eff'):
+                theme = _ef['primary_eff']
         fact = tc.get('fact_summary')
         need_review = bool(tc.get('needs_manual_review'))
         review_reason = tc.get('review_reason') or ''
@@ -613,7 +761,10 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         # 回测 pick5 两维：现行(35/15) T+5 -3.17% → 调整后(20/30) -2.48%，
         # 跑赢候选池 43% → 52%。注意：此处"提技术"用的是重构后的六维分，
         # 若沿用旧 technical_score 反而恶化至 -3.47%。
-        s_pos = max(0.0, 20.0 * (1 - dma / 3.0))
+        # 规则5（2026-10-13）：位置维改为 5 日动量百分位（满分 20）
+        # 旧式：s_pos = max(0.0, 20.0 * (1 - dma / 3.0))  # 距MA20越近越好，T+5 IC 仅 +0.025
+        s_pos = 20.0 * MOM_PCT.get(bare, 0.5)
+        mom5 = ((kl or {}).get(bare) or {}).get('mom5')
         s_fun = roe_score(roe) * 30.0 / 25.0
         s_biz = BIZ_SCORE.get(biz, 4 if biz is None else 5) * 20.0 / 15.0
         s_tec = 30.0 * min(1.0, (c.get('technical_score') or 0) / 30.0)
@@ -621,6 +772,38 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         km = (kl or {}).get(bare) or {}
         cpen, ctag = crowd_penalty(km.get('r250'), atr_pct, dma)
         pen = cpen + kf_pen
+        # ── 规则6：题材轮动字段（只写字段，不改分数；改分在 theme_priority）──
+        _effc = EFF_THEME.get(code) or EFF_THEME.get(bare) or {}
+        # 兜底顺序必须与 ops/theme_rotation.py 一致，否则个股查不到轮动状态：
+        # theme_rot（有效概念/主业）> industry_l3（三级行业）> primary_eff > 展示用题材
+        _rt = (_effc.get('theme_rot') or _effc.get('industry_l3')
+               or _effc.get('primary_eff') or theme or '')
+        _rd = (ROT.get('themes') or {}).get(_rt) or {}
+        rot_theme = _rt
+        rot_state = _rd.get('state') or '-'
+        rot_rank = _rd.get('rank') or 0
+        rot_ret1 = _rd.get('ret1')
+        rot_ret3 = _rd.get('ret3')
+        rot_ret5 = _rd.get('ret5')
+        rot_pct = _rd.get('pct')
+        # ── 规则7（2026-10-15）：题材阶段（首涨 / 连涨第N天 / 上涨趋势末端）──
+        # 用户诉求：板块轮动速度极快，日报要能看出题材是首涨还是已连涨多日；
+        # 震荡/下跌行情里，上涨趋势末端的板块容易买在高点。
+        # 341 天回测（题材层面未来 5 日超额）：连涨≥4 天 → 全样本 −0.16%(t=−3.02)；
+        # 下跌市 −0.88%(t=−3.93)、震荡市 −0.27%(t=−2.28)、上涨市中性(−0.01%)。
+        # 但把"末端降级"加进选股框架后 alpha 无提升（软加分 0.86%→0.78%，硬过滤 1.01%→0.97%），
+        # 故此处只标记、不扣分，与规则1 的 risk_flag 同一处理方式。
+        rot_stage = _rd.get('stage') or '-'
+        rot_streak = _rd.get('up_streak')
+        rot_run_gain = _rd.get('run_gain')
+        rot_pos60 = _rd.get('pos60')
+        rot_dist_ma20 = _rd.get('dist_ma20')
+        rot_trend = _rd.get('trend') or '-'
+        rot_topping = bool(_rd.get('topping_risky'))
+        stage_flag = ''
+        if rot_topping:
+            stage_flag = '题材末端·连涨%d天（本轮 +%.1f%%）' % (
+                rot_streak or 0, rot_run_gain or 0.0)
         total = s_pos + s_fun + s_biz + s_tec - pen
 
         rows.append({
@@ -629,6 +812,7 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             'turnover': q.get('turnover_pct'), 'totalcap': mc,
             'listing': (listing.get(bare) or {}).get('LISTING_DATE'),
             'dma': round(dma, 2), 'atr': round(c.get('atr14_pct') or 0, 2),
+            'mom5': mom5, 'mompct': round(MOM_PCT.get(bare, 0.5), 3),
             'tech': round(c.get('technical_score') or 0, 2),
             'sh': c.get('structure_health_score'), 'tsc': c.get('trend_structure_score'),
             'vp': round(c.get('volume_price_score') or 0, 2),
@@ -668,6 +852,15 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             'quant_rank': c.get('quant_rank'), 'quant_score': round(c.get('quant_score') or 0, 2),
             'sp': round(s_pos, 1), 'sf': round(s_fun, 1), 'sb': round(s_biz, 1), 'st': round(s_tec, 1),
             'total': round(total, 1),
+            'rot_theme': rot_theme, 'rot_state': rot_state, 'rot_rank': rot_rank,
+            'rot_ret1': rot_ret1, 'rot_ret3': rot_ret3, 'rot_ret5': rot_ret5,
+            'rot_pct': rot_pct, 'mom3': km.get('mom3'),
+            'rot_heat_pct': _rd.get('heat_pct'), 'rot_heat': _rd.get('heat'),
+            'rot_stage': rot_stage, 'rot_streak': rot_streak,
+            'rot_run_gain': rot_run_gain, 'rot_pos60': rot_pos60,
+            'rot_dist_ma20': rot_dist_ma20, 'rot_trend': rot_trend,
+            'rot_topping': rot_topping, 'stage_flag': stage_flag,
+            'srs': 0.0, 'srot': 0.0, 'total_rot': round(total, 1),
         })
     rows.sort(key=lambda r: -r['total'])
     return rows, dropped
@@ -686,7 +879,7 @@ def llm_comment(cfg, rows, trade_date, dropped):
     lines = []
     for i, r in enumerate(top, 1):
         lines.append(
-            '%d. %s(%s/%s) 总分%.1f[位置%.0f/基本%.0f/逻辑%.0f/技术%.0f] 收盘%.2f 涨%.2f%% '
+            '%d. %s(%s/%s) 总分%.1f[动量%.0f/基本%.0f/逻辑%.0f/技术%.0f] 收盘%.2f 涨%.2f%% '
             '距MA20=%.2fATR 市值%.0f亿 ROE=%s 营收%.2f亿 归母%.2f亿 扣非%.2f亿(占比%s) '
             'J=%.1f RSI=%.1f 量比%.2f 5日%.1f%% 20日%.1f%% 题材=%s 落地=%s 事实=%s'
             % (i, r['name'], r['code'], r['seg'], r['total'], r['sp'], r['sf'], r['sb'], r['st'],
@@ -700,7 +893,7 @@ def llm_comment(cfg, rows, trade_date, dropped):
 
     prompt = (
         '你是A股短线选股助理。以下是 %s 收盘后由一个量化打分系统产出的候选池与打分明细。\n'
-        '打分框架：位置安全35（距MA20的ATR倍数越低越好）+ 基本面30（ROE分档）+ 逻辑纯度20（已有收入>有实证>待核验）+ 技术15，满分100。\n'
+        '打分框架：5日动量20（候选池内横截面百分位，越强越好）+ 基本面30（ROE分档）+ 逻辑纯度20（已有收入>有实证>待核验）+ 技术30（六维重构分），满分100；另扣拥挤度与利润质量分。\n'
         '用户约束：短线持仓；沪市主板+深市主板+创业板+科创板；不吃流动性折价（资金量小）；实际只买1-2只。\n'
         '请输出严格 JSON（不要 markdown 代码块），结构：\n'
         '{"market_view":"<80字内市场判断>","top_rationale":[{"code":"","name":"","reason":"<60字，说明为什么排这个位置>","risk":"<40字主要风险>"}],'
@@ -874,8 +1067,45 @@ def main():
     ELASTICITY.clear()
     ELASTICITY.update(_el)
     log('弹性分 %d 条，候选门槛 %.0f' % (len(ELASTICITY), ELAST_MIN))
+    global ROT
+    ROT = load_theme_rotation()
+    log('题材轮动快照 %s（%d 个题材）' % (ROT.get('trade_date') or '缺失', len(ROT.get('themes') or {})))
     rows, dropped = score(cands, tx, listing, fin, kf, cfg.get('min_amount_yi', 0), ovr, kl)
     log('打分完成 候选%d 剔除%d' % (len(rows), len(dropped)))
+
+    # ── 规则6：题材轮动参与选股 ──
+    rot_mode, rot_hot, rot_codes = 'OFF', [], None
+    _mr1 = ROT.get('market_ret1')
+    if str(ROT.get('trade_date')) != want:
+        rot_mode = 'FALLBACK'
+        log('题材轮动快照日期 %s != 交易日 %s，本次不启用题材轮动'
+            % (ROT.get('trade_date'), want))
+    elif _mr1 is not None and _mr1 <= ROT_OFF_MKT:
+        rot_mode = 'FALLBACK'
+        log('当日全市场等权 %+.2f%%（<= %.1f%%），普跌日题材轮动无效，本次回退纯 D'
+            % (_mr1, ROT_OFF_MKT))
+    else:
+        rot_mode, rot_hot, rot_codes = theme_priority(rows, ROT)
+        if rot_codes:
+            _cs = set(rot_codes)
+            head = sorted([r for r in rows if r['code'] in _cs], key=lambda r: -r['total_rot'])
+            tail = sorted([r for r in rows if r['code'] not in _cs], key=lambda r: -r['total'])
+            rows = head + tail
+            log('题材优先命中：%s（候选 %d 只）' % (
+                '/'.join('%s[%s]' % (t, (ROT['themes'][t] or {}).get('state')) for t in rot_hot),
+                len(_cs)))
+        else:
+            # 软加分回退：热题材在池内凑不出足够候选时，仍让题材热度参与排序。
+            # 每日实际候选只有 ~31 只（payload 口径），硬过滤命中率低，
+            # 这一层保证「题材轮动每天都参与选股」，而不是长期空转。
+            for r in rows:
+                p = r.get('rot_heat_pct')
+                r['srot'] = round(ROT_SOFT_W * (p if p is not None else 0.5), 1)
+                r['total_rot'] = round(r['total'] + r['srot'], 1)
+            rows = sorted(rows, key=lambda r: -r['total_rot'])
+            rot_mode = 'SOFT'
+            log('题材优先未命中（热题材在池内不足 %d 只），改用软加分（满分 %.0f）'
+                % (ROT_MIN_CAND, ROT_SOFT_W))
     hit = [r for r in rows[:12] if r['crowd_pen'] > 0]
     if hit:
         log('拥挤度扣分: %s' % ', '.join('%s-%d(%s)' % (r['name'], r['crowd_pen'], r['crowd_tag'])
@@ -902,6 +1132,28 @@ def main():
         'pool_counts': {'official': len(bundle.get('official_review_candidates') or []),
                         'external': len(bundle.get('external_review_candidates') or []),
                         'scored': len(rows), 'dropped': len(dropped)},
+        'rotation': {
+            'mode': rot_mode,
+            'trade_date': ROT.get('trade_date'),
+            'indicator': ROT.get('indicator'),
+            'market_ret1': ROT.get('market_ret1'), 'market_ret5': ROT.get('market_ret5'),
+            'n_themes': ROT.get('n_themes'), 'state_count': ROT.get('state_count'),
+            'hot_top10': ROT.get('hot_top10') or [],
+            'cold_bottom5': ROT.get('cold_bottom5') or [],
+            'focus': [dict(((ROT.get('themes') or {}).get(t) or {}), theme=t) for t in rot_hot],
+            'n_cand': len(rot_codes) if rot_codes else 0,
+            'off_mkt': ROT_OFF_MKT,
+            'n_up_themes': ROT.get('n_up_themes'),
+            'n_dn_themes': ROT.get('n_dn_themes'),
+            'market_state': ROT.get('market_state'),
+            'market_ret20': ROT.get('market_ret20'),
+            'stage_count': ROT.get('stage_count'),
+            'top_streak': ROT.get('top_streak'),
+            'topping': sorted(
+                [dict(v, theme=t) for t, v in (ROT.get('themes') or {}).items()
+                 if v.get('topping_risky')],
+                key=lambda x: -(x.get('up_streak') or 0))[:12],
+        },
         'risk_controls': {'cluster_cap': cfg.get('cluster_cap', 2), 'cluster_capped': capped,
                           'crowd_rule': '年涨幅+ATR%+贴均线，实验参数未回测'},
     }
@@ -913,9 +1165,21 @@ def main():
 
     print('\n=== Top5 (%s) ===' % want)
     for i, r in enumerate(picks, 1):
-        print('%d. %-8s %-6s %5.1f | 位置%.0f 基本%.0f 逻辑%.0f 技术%.0f 拥挤-%d 质量-%d | 扣非%s | %s/%s' % (
+        print('%d. %-8s %-6s %5.1f | 动量%.0f 基本%.0f 逻辑%.0f 技术%.0f 拥挤-%d 质量-%d | 扣非%s | %s/%s' % (
             i, r['name'], r['code'], r['total'], r['sp'], r['sf'], r['sb'], r['st'],
             r['crowd_pen'], r['kf_pen'], r['kf_flag'], r['theme'], r['cluster'] or '未归类'))
+    if rot_codes:
+        print('题材优先模式：%s | 候选 %d 只' % (
+            '/'.join('%s[%s]' % (t, (ROT['themes'][t] or {}).get('state')) for t in rot_hot),
+            len(rot_codes)))
+    for i, r in enumerate(picks, 1):
+        _rs = (r.get('srs') or 0) if rot_mode == 'THEME' else (r.get('srot') or 0)
+        print('   %d. %s %s +%.1f → 总分 %.1f（题材 %s · %s · %s）%s'
+              % (i, r['name'], '题材内相对强势' if rot_mode == 'THEME' else '题材热度加分',
+                 _rs, r.get('total_rot') or r['total'],
+                 r.get('rot_theme') or '-', r.get('rot_state') or '-',
+                 r.get('rot_stage') or '-',
+                 ('  ⚠ ' + r['stage_flag']) if r.get('stage_flag') else ''))
     return 0
 
 
