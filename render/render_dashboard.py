@@ -336,10 +336,12 @@ def render_rotation(rot):
     if not rot or not rot.get('trade_date'):
         return ''
     mode = rot.get('mode') or 'OFF'
-    hot = (rot.get('hot_top10') or [])[:8]
+    hot = ((rot.get('hot_clusters') or rot.get('hot_top10')) or [])[:8]
+    using_clusters = bool(rot.get('hot_clusters'))
     cold = (rot.get('cold_bottom5') or [])[:5]
     topping = (rot.get('topping') or [])[:6]
     mstate = rot.get('market_state') or '-'
+    mainline = rot.get('mainline') or {}
     focus_names = set((f or {}).get('theme') for f in (rot.get('focus') or []))
 
     boxes = [
@@ -348,7 +350,8 @@ def render_rotation(rot):
          '全市场等权 %s' % pct_txt(rot.get('market_ret1'))),
         ('本期模式', '题材优先' if mode == 'THEME' else ('软加分' if mode == 'SOFT' else '回退纯 D'),
          ('热题材候选 ' + str(rot.get('n_cand', 0)) + ' 只') if mode == 'THEME'
-         else ('0~30 分题材加分' if mode == 'SOFT' else '热题材在池内不足 5 只')),
+         else ('0~30 分题材加分' if mode == 'SOFT' else '热题材在池内不足 3 只')),
+        ('主线判定', mainline.get('market_mainline_state') or '-', '价格与广度，前向观察'),
     ]
     bx = []
     for k, v, d in boxes:
@@ -358,18 +361,19 @@ def render_rotation(rot):
 
     tr = []
     for ix, h in enumerate(hot, 1):
-        nm = esc(h.get('theme'))
-        if h.get('theme') in focus_names:
+        hname = h.get('theme') or h.get('cluster')
+        nm = esc(hname)
+        if hname in focus_names:
             nm = '<b>' + nm + '</b> <span class="tag b">本期主攻</span>'
-        tip = '加速度 %s%% · 上涨家数 %s%% · 本轮涨幅 %s%% · 趋势 %s' % (
+        tip = '加速度 %s%% · 上涨家数 %s%% · 原始题材 %s' % (
             fnum(h.get('acc'), 2), fnum((h.get('up1') or 0) * 100, 0),
-            fnum(h.get('run_gain'), 1), esc(h.get('trend') or '-'))
+            esc('/'.join(h.get('raw_themes') or [hname])))
         tr.append('<tr><td class="mono">' + str(ix) + '</td><td title="' + tip + '">' + nm + '</td>'
                   '<td>' + rot_stage_tag(h) + '</td>'
                   '<td class="r mono ' + pct_cls(h.get('ret1')) + '">' + pct_txt(h.get('ret1')) + '</td>'
                   '<td class="r mono ' + pct_cls(h.get('ret3')) + '">' + pct_txt(h.get('ret3')) + '</td>'
                   '<td class="r mono ' + pct_cls(h.get('dist_ma20')) + '">' + pct_txt(h.get('dist_ma20')) + '</td>'
-                  '<td class="r mono">' + str(h.get('n_pool') or 0) + '</td></tr>')
+                  '<td class="r mono">' + str(h.get('n_members') if using_clusters else (h.get('n_pool') or 0)) + '</td></tr>')
 
     trt = []
     for h in topping:
@@ -386,12 +390,28 @@ def render_rotation(rot):
                    '<td class="r mono ' + pct_cls(c.get('dist_ma20')) + '">' + pct_txt(c.get('dist_ma20')) + '</td>'
                    '<td class="r mono">' + str(c.get('n_pool') or 0) + '</td></tr>')
 
+    watch_rows = []
+    clusters = rot.get('clusters') or {}
+    for label, w in (mainline.get('watchlist') or {}).items():
+        best = clusters.get(w.get('best_cluster')) or {}
+        watch_rows.append('<tr><td>' + esc(label) + '</td><td>' + esc(w.get('state') or '-') + '</td>'
+                          '<td>' + esc(w.get('best_cluster') or '-') + '</td>'
+                          '<td class="r mono ' + pct_cls(best.get('excess5')) + '">' + pct_txt(best.get('excess5')) + '</td>'
+                          '<td class="r mono">' + fnum((best.get('above_ma20_share') or 0) * 100, 0) + '%</td>'
+                          '<td class="r mono">' + fnum((best.get('near_high20_share') or 0) * 100, 0) + '%</td>'
+                          '<td class="r mono">' + pct_txt(best.get('leader_ret10')) + '</td></tr>')
+
     out = []
     out.append('<h2>二、今日题材轮动</h2>')
     out.append('<div class="snap">' + ''.join(bx) + '</div>')
-    out.append('<table><tr><th>#</th><th>题材</th><th>阶段</th>'
+    if watch_rows:
+        out.append('<div class="sub" style="margin:10px 0 4px"><b>六个候选方向的主线状态</b>（每日固定口径落盘，供前向验证）</div>')
+        out.append('<table><tr><th>方向</th><th>状态</th><th>代表集群</th>'
+                   '<th class="r">5日超额</th><th class="r">MA20上</th>'
+                   '<th class="r">近20日高</th><th class="r">龙头10日</th></tr>' + ''.join(watch_rows) + '</table>')
+    out.append('<table><tr><th>#</th><th>题材集群</th><th>阶段</th>'
                '<th class="r">今日</th><th class="r">3日</th>'
-               '<th class="r">距MA20</th><th class="r">池内</th></tr>' + ''.join(tr) + '</table>')
+               '<th class="r">距MA20</th><th class="r">' + ('成员' if using_clusters else '池内') + '</th></tr>' + ''.join(tr) + '</table>')
     if trt:
         out.append('<div class="sub" style="margin:14px 0 4px">'
                    '<b>上涨趋势末端</b>（连涨 &ge;' + str(rot.get('top_streak') or 4)
@@ -403,9 +423,10 @@ def render_rotation(rot):
     out.append('<table><tr><th>题材</th><th class="r">3日</th>'
                '<th class="r">距MA20</th><th class="r">池内</th></tr>' + ''.join(trc) + '</table>')
     out.append('<div class="note"><b>怎么读：</b>「阶段」= 首涨 / 连涨第 N 天 / 末端（连涨&ge;4 天）；'
-               '热度用<b>全市场</b>成员算，不设成交额门槛；'
+               '热度用<b>全市场</b>成员算，不设成交额门槛；高相关题材已按集群去重，鼠标悬停可看原始题材。'
+               '主线状态由相对收益、上涨持续性、MA20广度、近20日新高扩散和龙头强度共同判定，暂只观察不改权重。'
                '三级级联 RET1&times;3 &rarr; ACC&times;5 &rarr; RET10&times;5，'
-               '池内凑不出 5 只或普跌日（全市场&le;-1%）则回退纯 D。'
+               '池内凑不出 3 只或普跌日（全市场&le;-1%）则回退纯 D。'
                '回测：题材优先 +1.08%/期 vs 纯 D +0.47%/期；'
                '题材内相对强势 +1.34%/期，题材内随机仅 +0.39%（不显著）——'
                '<b>题材只负责缩小范围，alpha 来自筛完之后怎么选</b>。</div>')
@@ -447,7 +468,7 @@ def render_universe_scan(us):
                   us.get('stage_filter', {}).get('early_min', 1),
                   us.get('stage_filter', {}).get('early_max', 3), us.get('per_theme') or 5))
     out.append('<div class="note"><b>与上面的 Top5 完全独立：</b>'
-               'Top5 只从观察池 200 只里产生；本区是全市场热题材里相对强势的个股，'
+               'Top5 只从观察池 202 只里产生；本区是全市场热题材里相对强势的个股，'
                '<b>不参与 Top5 排名、不自动入池</b>，只作为人工换池的候选清单。'
                '“池外”即当前不在观察池内的标的，才是值得考虑补进池子的。</div>')
     return '\n'.join(out)
