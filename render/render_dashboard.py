@@ -474,6 +474,34 @@ def render_universe_scan(us):
     return '\n'.join(out)
 
 
+def render_market_picks(picks_market):
+    """全市场腿 Top5（趋势型因子，独立于池内 v5 四维）。精简表，因子口径不同不混排。"""
+    if not picks_market:
+        return ''
+    tr = []
+    for i, r in enumerate(picks_market, 1):
+        trend = '20日%s%% · 连阳%d天%s' % (
+            fnum(r.get('mom20')), r.get('streak') or 0,
+            ' · 均线多头' if r.get('bull') else '')
+        tr.append('<tr><td class="mono">%d</td><td>%s</td><td class="mono">%s</td>'
+                  '<td>%s</td><td class="r mono">%.0f</td>'
+                  '<td class="r mono">%s</td><td class="r mono %s">%s</td>'
+                  '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
+                  % (i, esc(r.get('name')), esc(r.get('code')),
+                     esc(r.get('rot_theme') or r.get('industry') or '-'),
+                     r.get('pos60') or 0, trend,
+                     pct_cls(r.get('mom20')), pct_txt(r.get('mom20')),
+                     ('-%d' % r.get('crowd_pen')) if r.get('crowd_pen') else '—',
+                     fnum(r.get('total'), 1)))
+    return ('<h2>四之二、全市场 Top5（趋势型，为通用化验证）</h2>'
+            '<div class="note">全市场腿使用<b>独立趋势型因子</b>（位置60 + 20日/5日涨幅分位 + 连阳 + 均线多头），'
+            '基本面只作门槛不作打分；权重为占位，与备忘2/8回测一起定参。'
+            '<b>本区为模型通用化前置验证，非池内实盘建议。</b></div>'
+            '<table><tr><th>#</th><th>名称</th><th>代码</th><th>题材</th>'
+            '<th class="r">位置60</th><th>趋势</th><th class="r">20日</th>'
+            '<th class="r">拥挤</th><th class="r">总分</th></tr>%s</table>' % ''.join(tr))
+
+
 def render_pool(rows, topn=20):
     shown = rows[:topn] if (topn and len(rows) > topn) else rows
     tr = []
@@ -556,6 +584,7 @@ def render(data_dir, narrative_path, out_path):
     picks = load(os.path.join(data_dir, 'picks.json'), [])
     scored = load(os.path.join(data_dir, 'scored.json'), [])
     dropped = load(os.path.join(data_dir, 'dropped.json'), [])
+    picks_market = load(os.path.join(data_dir, 'picks_market.json'), [])
     narr = load(narrative_path)
     css = open(os.path.join(BASE, 'template.css'), encoding='utf-8').read()
 
@@ -583,6 +612,7 @@ def render(data_dir, narrative_path, out_path):
         body.append(render_pick(r, i, narr))
     if narr.get('summary'):
         body.append('<div class="note"><b>操作提示：</b>%s</div>' % narr['summary'])
+    body.append(render_market_picks(picks_market))
     body.append(render_pool(scored))
     body.append(render_dropped(dropped))
     body.append(render_foot(narr))
