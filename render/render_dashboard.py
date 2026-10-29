@@ -492,14 +492,13 @@ def render_icepoint(ice):
     if bursts:
         tr = []
         for b in bursts[:20]:
+            cls = pct_cls(b.get('cur_mean_ret'))
+            txt = pct_txt(b.get('cur_mean_ret'))
             tr.append('<tr><td>' + esc(b.get('cluster')) + '</td>'
-                      '<td class="r mono">%d</td>'
-                      '<td class="r mono">%.0f%%</td>'
-                      '<td class="r mono">%.0f%%</td>'
-                      '<td class="r mono %s">%s</td></tr>'
-                      % (b.get('n_members'), b.get('prev_up_share', 0) * 100,
-                         b.get('cur_up_share', 0) * 100,
-                         pct_cls(b.get('cur_mean_ret')), pct_txt(b.get('cur_mean_ret'))))
+                      '<td class="r mono">' + str(b.get('n_members')) + '</td>'
+                      '<td class="r mono">' + ('%.0f%%' % (b.get('prev_up_share', 0) * 100)) + '</td>'
+                      '<td class="r mono">' + ('%.0f%%' % (b.get('cur_up_share', 0) * 100)) + '</td>'
+                      '<td class="r mono ' + cls + '">' + txt + '</td></tr>')
         out.append('<table><tr><th>集群</th><th class="r">成员</th>'
                    '<th class="r">前日占比</th><th class="r">当日占比</th>'
                    '<th class="r">当日均涨</th></tr>' + ''.join(tr) + '</table>')
@@ -511,14 +510,15 @@ def render_icepoint(ice):
                    '用于验证板块是否真启动，不是买入推荐）</div>' % len(core))
         tr = []
         for c in core[:30]:
-            lead = '领涨' if c.get('leading') else '—'
+            cls = pct_cls(c.get('pct'))
+            txt = pct_txt(c.get('pct'))
+            lead = '<span class="tag gy">领涨</span>' if c.get('leading') else '—'
             tr.append('<tr><td class="mono">' + esc(c.get('code')) + '</td>'
                       '<td>' + esc(c.get('name')) + '</td>'
                       '<td>' + esc(c.get('role')) + '</td>'
                       '<td>' + esc(c.get('cluster')) + '</td>'
-                      '<td class="r mono %s">%s</td>'
-                      '<td>' + ('<span class="tag gy">领涨</span>' if c.get('leading') else '—') + '</td></tr>'
-                      % (pct_cls(c.get('pct')), pct_txt(c.get('pct'))))
+                      '<td class="r mono ' + cls + '">' + txt + '</td>'
+                      '<td>' + lead + '</td></tr>')
         out.append('<table><tr><th>代码</th><th>名称</th><th>角色</th><th>集群</th>'
                    '<th class="r">当日%</th><th>领涨</th></tr>' + ''.join(tr) + '</table>')
     return '\n'.join(out)
