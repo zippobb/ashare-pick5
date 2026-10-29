@@ -20,6 +20,7 @@ WEEK = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
 # ---------- 工具 ----------
 UNIVERSE_SCAN_JSON = '/opt/stock-automation/scanner/config/theme_universe_scan_latest.json'   # 全市场题材扫描（独立数据源，不进 Top5）
+ICEPOINT_SCAN_JSON = '/opt/stock-automation/scanner/config/icepoint_scan_latest.json'          # 冰点骤升 + 券商核心标的（观察区，不进 Top5）
 
 
 def load(p, default=None):
@@ -474,6 +475,55 @@ def render_universe_scan(us):
     return '\n'.join(out)
 
 
+def render_icepoint(ice):
+    """冰点骤升 + 券商核心标的（观察区，不改 Top5）。"""
+    if not ice:
+        return ''
+    bursts = ice.get('bursts') or []
+    core = ice.get('core_in_burst') or []
+    if not bursts and not core:
+        return ''
+    out = []
+    out.append('<h2>三之二、题材冰点骤升 + 券商核心标的（仅供观察，不进 Top5）</h2>')
+    out.append('<div class="sub" style="margin:16px 0 6px">'
+               '<b>当日「冰点骤升」集群 %d 个</b>（前日上涨占比&lt;20%% → 当日&gt;50%% 且均涨转正，'
+               '集群粒度、等权个股口径）。普涨日该信号会满屏飘红，仅供观察，'
+               '<b>不改 Top5、不参与打分</b>。</div>' % len(bursts))
+    if bursts:
+        tr = []
+        for b in bursts[:20]:
+            tr.append('<tr><td>' + esc(b.get('cluster')) + '</td>'
+                      '<td class="r mono">%d</td>'
+                      '<td class="r mono">%.0f%%</td>'
+                      '<td class="r mono">%.0f%%</td>'
+                      '<td class="r mono %s">%s</td></tr>'
+                      % (b.get('n_members'), b.get('prev_up_share', 0) * 100,
+                         b.get('cur_up_share', 0) * 100,
+                         pct_cls(b.get('cur_mean_ret')), pct_txt(b.get('cur_mean_ret'))))
+        out.append('<table><tr><th>集群</th><th class="r">成员</th>'
+                   '<th class="r">前日占比</th><th class="r">当日占比</th>'
+                   '<th class="r">当日均涨</th></tr>' + ''.join(tr) + '</table>')
+        if len(bursts) > 20:
+            out.append('<div class="note">仅显示涨幅前 20 个，共 %d 个。</div>' % len(bursts))
+    if core:
+        out.append('<div class="sub" style="margin:16px 0 6px"><b>冰点骤升集群内的券商核心标的 %d 个</b>'
+                   '（券商点名的正宗龙头；「领涨」= 当日跑赢所在集群均值，'
+                   '用于验证板块是否真启动，不是买入推荐）</div>' % len(core))
+        tr = []
+        for c in core[:30]:
+            lead = '领涨' if c.get('leading') else '—'
+            tr.append('<tr><td class="mono">' + esc(c.get('code')) + '</td>'
+                      '<td>' + esc(c.get('name')) + '</td>'
+                      '<td>' + esc(c.get('role')) + '</td>'
+                      '<td>' + esc(c.get('cluster')) + '</td>'
+                      '<td class="r mono %s">%s</td>'
+                      '<td>' + ('<span class="tag gy">领涨</span>' if c.get('leading') else '—') + '</td></tr>'
+                      % (pct_cls(c.get('pct')), pct_txt(c.get('pct'))))
+        out.append('<table><tr><th>代码</th><th>名称</th><th>角色</th><th>集群</th>'
+                   '<th class="r">当日%</th><th>领涨</th></tr>' + ''.join(tr) + '</table>')
+    return '\n'.join(out)
+
+
 def render_market_picks(picks_market):
     """全市场腿 Top5（趋势型因子，独立于池内 v5 四维）。精简表，因子口径不同不混排。"""
     if not picks_market:
@@ -593,9 +643,11 @@ def render(data_dir, narrative_path, out_path):
 
     uscan = ((market.get('rotation') or {}).get('universe_scan')
              or load(UNIVERSE_SCAN_JSON))
+    ice = (market.get('rotation') or {}).get('icepoint_scan') or load(ICEPOINT_SCAN_JSON)
     body = [render_head(td, market, gen), render_alert(narr), render_snap(market.get('env') or {}),
             render_rotation(market.get('rotation') or {}),
             render_universe_scan(uscan or {}),
+            render_icepoint(ice or {}),
             '<h2>四、今日五个标的（按确定性排名）</h2>',
             '<div class="sub" style="margin-bottom:12px">排名即优先级。'
             '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b>'
