@@ -21,6 +21,7 @@ WEEK = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 # ---------- 工具 ----------
 UNIVERSE_SCAN_JSON = '/opt/stock-automation/scanner/config/theme_universe_scan_latest.json'   # 全市场题材扫描（独立数据源，不进 Top5）
 ICEPOINT_SCAN_JSON = '/opt/stock-automation/scanner/config/icepoint_scan_latest.json'          # 冰点骤升 + 券商核心标的（观察区，不进 Top5）
+SUBFAMILY_STRENGTH_JSON = '/opt/stock-automation/scanner/config/subfamily_strength_latest.json'   # 细分族强度（已参与全市场腿打分）
 
 
 def load(p, default=None):
@@ -524,6 +525,71 @@ def render_icepoint(ice):
     return '\n'.join(out)
 
 
+def render_subfamily(sf):
+    """细分族强度榜（2026-10-31 上线，已参与全市场腿 sf_boost 打分）。"""
+    if not sf:
+        return ''
+    subs = sf.get('subfamilies') or []
+    if not subs:
+        return ''
+    from collections import Counter
+    mkt = sf.get('market_ew_ret_5d')
+    out = []
+    out.append('<h2>三之三、细分族强度榜（%d 个细分族）</h2>' % len(subs))
+    sub_txt = ('<b>141 个细分族</b>由「大方向 ＞ 细分族 ＞ 题材」三级体系构成，'
+               '收益口径 = 族内全部成员<b>等权个股收益率</b>'
+               '（每只票各算涨跌再平均，不是等权价格指数）。')
+    if mkt is not None:
+        sub_txt += '当日全市场等权 5 日 <b>%+.2f%%</b>，下表为该基准下的相对强弱。' % mkt
+    sub_txt += '<b>该因子已进入全市场腿打分（所属细分族强度分位 × 10 分，满分 100），前向观察 4-8 周。</b>'
+    out.append('<div class="sub" style="margin:16px 0 8px">' + sub_txt + '</div>')
+
+    # 大方向汇总
+    dd = {}
+    for s in subs:
+        k = s.get('direction') or '未归类'
+        v = dd.setdefault(k, [0, 0, 0.0])
+        v[0] += 1
+        v[1] += s.get('n_members') or 0
+        v[2] += (s.get('ret5') or 0) * (s.get('n_members') or 0)
+    rows = [(k, v[0], v[1], (v[2] / v[1] if v[1] else 0)) for k, v in dd.items()]
+    rows.sort(key=lambda x: -x[3])
+    tr = []
+    for k, nf, nm, r5 in rows:
+        tr.append('<tr><td>' + esc(k) + '</td>'
+                  '<td class="r mono">' + str(nf) + '</td>'
+                  '<td class="r mono">' + str(nm) + '</td>'
+                  '<td class="r mono ' + pct_cls(r5) + '">' + pct_txt(r5) + '</td></tr>')
+    out.append('<div class="sub" style="margin:12px 0 6px"><b>大方向层面</b>'
+               '（细分族收益按成员数加权）</div>')
+    out.append('<table><tr><th>大方向</th><th class="r">细分族</th>'
+               '<th class="r">成员</th><th class="r">5 日</th></tr>' + ''.join(tr) + '</table>')
+
+    # 最强 / 最弱
+    def _tbl(title, lst, note=''):
+        rs = []
+        for s in lst:
+            rs.append('<tr><td>' + esc(s.get('sub')) + '</td>'
+                      '<td>' + esc(s.get('family')) + '</td>'
+                      '<td>' + esc(s.get('direction')) + '</td>'
+                      '<td class="r mono">' + str(s.get('n_members')) + '</td>'
+                      '<td class="r mono ' + pct_cls(s.get('ret5')) + '">' + pct_txt(s.get('ret5')) + '</td>'
+                      '<td class="r mono ' + pct_cls(s.get('ret10')) + '">' + pct_txt(s.get('ret10')) + '</td>'
+                      '<td class="r mono">' + ('%.0f%%' % (s.get('up_share') or 0)) + '</td></tr>')
+        return ('<div class="sub" style="margin:16px 0 6px"><b>%s</b>%s</div>' % (title, note) +
+                '<table><tr><th>细分族</th><th>原族</th><th>大方向</th>'
+                '<th class="r">成员</th><th class="r">5 日</th><th class="r">10 日</th>'
+                '<th class="r">上涨占比</th></tr>' + ''.join(rs) + '</table>')
+
+    out.append(_tbl('最强 15 个细分族（按 5 日收益）', subs[:15]))
+    out.append(_tbl('最弱 10 个细分族',
+                    sorted(subs, key=lambda x: (x.get('ret5') or 0))[:10],
+                    '（<b>回避区</b>：这些方向正在杀跌，不要在里面找票）'))
+    out.append('<div class="note">细分族榜用于判断「哪个大方向/子赛道在走强」，'
+               '与 Top5 的打分是同一因子（sf_boost），但 Top5 仍由完整 v5 框架决定。</div>')
+    return ''.join(out)
+
+
 def render_market_picks(picks_market):
     """全市场腿 Top5（趋势型因子，独立于池内 v5 四维）。精简表，因子口径不同不混排。"""
     if not picks_market:
@@ -644,10 +710,12 @@ def render(data_dir, narrative_path, out_path):
     uscan = ((market.get('rotation') or {}).get('universe_scan')
              or load(UNIVERSE_SCAN_JSON))
     ice = (market.get('rotation') or {}).get('icepoint_scan') or load(ICEPOINT_SCAN_JSON)
+    sfs = (market.get('rotation') or {}).get('subfamily_strength') or load(SUBFAMILY_STRENGTH_JSON)
     body = [render_head(td, market, gen), render_alert(narr), render_snap(market.get('env') or {}),
             render_rotation(market.get('rotation') or {}),
             render_universe_scan(uscan or {}),
             render_icepoint(ice or {}),
+            render_subfamily(sfs or {}),
             '<h2>四、今日五个标的（按确定性排名）</h2>',
             '<div class="sub" style="margin-bottom:12px">排名即优先级。'
             '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b>'
