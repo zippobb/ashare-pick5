@@ -237,7 +237,7 @@ def render_pick(r, i, narr):
            esc(r.get('seg') or '-'), pick_tags(r, nd.get('tags_extra')),
            fnum(r.get('close')), pct_cls(chg), pct_txt(chg)))
     b1 = (bar('位置60', r.get('sp', 0), 20, True) + bar('基本面', r.get('sf', 0), 30, True)
-          + bar('逻辑纯度', r.get('sb', 0), 20, True) + bar('技术', r.get('st', 0), 30, True)
+          + bar('5日动量', r.get('sm5', 0), 20, True) + bar('技术', r.get('st', 0), 30, True)
           + bar('细分族强度', r.get('sf_boost') or 0, 10, True)
           + (bar('题材内相对强势', r.get('srs', 0), 30, True) if r.get('srs') else ''))
     b2 = (bar('技术总分', r.get('tech', 0), 30) + bar('结构健康', r.get('sh') or 0, 3)
@@ -265,7 +265,7 @@ def render_pick(r, i, narr):
         pens.append('拥挤度 −%d' % r['crowd_pen'])
     if r.get('kf_pen'):
         pens.append('利润质量 −%d' % r['kf_pen'])
-    _gross = ((r.get('sp') or 0) + (r.get('sf') or 0) + (r.get('sb') or 0)
+    _gross = ((r.get('sp') or 0) + (r.get('sf') or 0) + (r.get('sm5') or 0)
               + (r.get('st') or 0) + (r.get('sf_boost') or 0))
     _sfn = r.get('sub_family')
     crowd = ('<div class="note">总分 = 四维 %s + 细分族 %s = %s%s</div>'
@@ -659,8 +659,8 @@ def render_pool(rows, topn=20):
     notes = []
     if n:
         notes.append('<div class="note">题材取自上游人工维护的题材映射表，非算法推断。'
-                     '标「未入题材表」的 %d 只不在表内，此处显示行业分类代替；'
-                     '其逻辑纯度维度按最低档计分，排名已相应偏低。</div>' % n)
+                     '标「未入题材表」的 %d 只不在表内，此处显示行业分类代替'
+                     '（2026-10-31 起逻辑纯度不再计分，对排名无影响）。</div>' % n)
     m = sum(1 for r in rows if r.get('risk_flag'))
     if m:
         notes.append('<div class="note">规则1（2026-10-12 生效）：观察池内标的不再因利润质量'
@@ -704,8 +704,9 @@ def render_liquidity(rows):
 
 def render_foot(narr):
     return ('<div class="disc">%s<br><br>本页由数据管线自动生成，'
-            '仅供本人交易参考，不构成投资建议。评分框架 v5：位置60 20 + 基本面 30 + 逻辑纯度 20 + 技术 30'
-            ' + 题材内相对强势 30（仅题材优先模式生效），不含流动性维度；成交额不参与打分、不影响排名。<br>'
+            '仅供本人交易参考，不构成投资建议。评分框架：位置60 20 + 基本面 30 + 5日动量 20 + 技术 30'
+            ' + 细分族强度 10 = 110（+ 题材内相对强势 30，仅题材优先模式生效），不含流动性维度；'
+            '成交额不参与打分、不影响排名。逻辑纯度自 2026-10-31 起仅作展示、不计分。<br>'
             '<b>位置60</b>（60日价格位置）=（今收 − 60日最低）÷（60日最高 − 60日最低）×100：'
             '100 = 创 60 日新高，0 = 60 日最低。它衡量股价在近 60 日箱体里的相对位置，'
             '不是「最近涨了多少」。<br>'
@@ -737,7 +738,7 @@ def render(data_dir, narrative_path, out_path):
             '<h2>四、今日五个标的（按确定性排名）</h2>',
             '<div class="sub" style="margin-bottom:12px">排名即优先级。'
             '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b>'
-            '评分框架 v5：位置60 20 + 基本面 30 + 逻辑纯度 20 + 技术 30 = 100（不含流动性维度）。'
+            '评分框架：位置60 20 + 基本面 30 + 5日动量 20 + 技术 30 + 细分族强度 10 = 110（不含流动性维度）。'
             '位置60 = 股价在近 60 日高低区间中的相对位置，100 表示创 60 日新高，0 表示 60 日最低。</div>']
     body.append(
         '<div class="legend"><b>色条图例（按得分率着色，与涨跌的红/绿配色无关）：</b>'
