@@ -238,6 +238,7 @@ def render_pick(r, i, narr):
            fnum(r.get('close')), pct_cls(chg), pct_txt(chg)))
     b1 = (bar('位置60', r.get('sp', 0), 20, True) + bar('基本面', r.get('sf', 0), 30, True)
           + bar('逻辑纯度', r.get('sb', 0), 20, True) + bar('技术', r.get('st', 0), 30, True)
+          + bar('细分族强度', r.get('sf_boost') or 0, 10, True)
           + (bar('题材内相对强势', r.get('srs', 0), 30, True) if r.get('srs') else ''))
     b2 = (bar('技术总分', r.get('tech', 0), 30) + bar('结构健康', r.get('sh') or 0, 3)
           + bar('趋势结构', r.get('tsc') or 0, 8) + bar('量价', r.get('vp', 0), 6)
@@ -264,14 +265,26 @@ def render_pick(r, i, narr):
         pens.append('拥挤度 −%d' % r['crowd_pen'])
     if r.get('kf_pen'):
         pens.append('利润质量 −%d' % r['kf_pen'])
-    crowd = ('<div class="note">总分 = 四维合计 %s − %s</div>'
-             % (fnum((r.get('sp') or 0) + (r.get('sf') or 0) + (r.get('sb') or 0) + (r.get('st') or 0), 1),
-                '、'.join(pens))) if pens else ''
+    _gross = ((r.get('sp') or 0) + (r.get('sf') or 0) + (r.get('sb') or 0)
+              + (r.get('st') or 0) + (r.get('sf_boost') or 0))
+    _sfn = r.get('sub_family')
+    crowd = ('<div class="note">总分 = 四维 %s + 细分族 %s = %s%s</div>'
+             % (fnum(_gross - (r.get('sf_boost') or 0), 1), fnum(r.get('sf_boost') or 0, 1),
+                fnum(_gross, 1), (' − ' + '、'.join(pens)) if pens else ''))
+    if _sfn:
+        crowd += ('<div class="note">所属细分族：<b>%s</b>（%s／%s），5 日 %s</div>'
+                  % (esc(_sfn), esc(r.get('sub_family_parent') or '-'),
+                     esc(r.get('sub_family_direction') or '-'),
+                     pct_txt(r.get('sub_ret5')) if r.get('sub_ret5') is not None else '—'))
+    else:
+        crowd += '<div class="note">该股不在细分族体系内（未覆盖 36%），细分族项按中性 5 分计，不奖不罚</div>'
     body = ('<div class="pick-bd"><div class="grid2"><div>'
-            '<h3>四维综合评分 <b class="mono %st">%s</b></h3><div class="bars">%s</div>%s</div>'
+            '<h3>综合评分（四维 100 + 细分族 10） <b class="mono %st">%s</b></h3>'
+            '<div class="bars">%s</div>%s</div>'
             '<div><h3>六维技术评分（上游口径）</h3><div class="bars">%s</div></div></div>'
             '%s%s%s</div>'
-            % (rate_cls(min(100, (r.get('total') or 0))), fnum(r.get('total'), 1), b1, crowd, b2, sec, op, fals))
+            % (rate_cls(min(100, 100.0 * (r.get('total') or 0) / 110.0)),
+               fnum(r.get('total'), 1), b1, crowd, b2, sec, op, fals))
     return '<div class="pick">%s%s</div>\n' % (hd, body)
 
 
@@ -602,20 +615,25 @@ def render_market_picks(picks_market):
         tr.append('<tr><td class="mono">%d</td><td>%s</td><td class="mono">%s</td>'
                   '<td>%s</td><td class="r mono">%.0f</td>'
                   '<td class="r mono">%s</td><td class="r mono %s">%s</td>'
-                  '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
+                  '<td class="r mono">%s</td><td class="r mono">%s</td>'
+                  '<td>%s</td><td class="r mono">%s</td></tr>'
                   % (i, esc(r.get('name')), esc(r.get('code')),
                      esc(r.get('rot_theme') or r.get('industry') or '-'),
                      r.get('pos60') or 0, trend,
                      pct_cls(r.get('mom20')), pct_txt(r.get('mom20')),
                      ('-%d' % r.get('crowd_pen')) if r.get('crowd_pen') else '—',
+                     fnum(r.get('sf_boost'), 1),
+                     esc(r.get('sub_family') or '（未覆盖·中性5）'),
                      fnum(r.get('total'), 1)))
     return ('<h2>四之二、全市场 Top5（趋势型，为通用化验证）</h2>'
-            '<div class="note">全市场腿使用<b>独立趋势型因子</b>（位置60 + 20日/5日涨幅分位 + 连阳 + 均线多头），'
+            '<div class="note">全市场腿使用<b>独立趋势型因子</b>（位置60 20 + 20日 30 + 5日 20 + 连阳 10 + 多头 10'
+            ' + 细分族强度 10 = 100），'
             '基本面只作门槛不作打分；权重为占位，与备忘2/8回测一起定参。'
             '<b>本区为模型通用化前置验证，非池内实盘建议。</b></div>'
             '<table><tr><th>#</th><th>名称</th><th>代码</th><th>题材</th>'
             '<th class="r">位置60</th><th>趋势</th><th class="r">20日</th>'
-            '<th class="r">拥挤</th><th class="r">总分</th></tr>%s</table>' % ''.join(tr))
+            '<th class="r">拥挤</th><th class="r">细分族</th><th>所属</th>'
+            '<th class="r">总分</th></tr>%s</table>' % ''.join(tr))
 
 
 def render_pool(rows, topn=20):
