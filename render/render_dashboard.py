@@ -22,6 +22,8 @@ WEEK = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 UNIVERSE_SCAN_JSON = '/opt/stock-automation/scanner/config/theme_universe_scan_latest.json'   # 全市场题材扫描（独立数据源，不进 Top5）
 ICEPOINT_SCAN_JSON = '/opt/stock-automation/scanner/config/icepoint_scan_latest.json'          # 冰点骤升 + 券商核心标的（观察区，不进 Top5）
 SUBFAMILY_STRENGTH_JSON = '/opt/stock-automation/scanner/config/subfamily_strength_latest.json'   # 细分族强度（已参与全市场腿打分）
+DIRECTION_STRENGTH_JSON = '/opt/stock-automation/scanner/config/direction_strength.json'   # 大方向主线状态（2026-11-01 新增）
+SUBFAMILY_MAP_JSON = '/opt/stock-automation/scanner/config/subfamily_map.json'   # 细分族映射（股票代码 -> 细分族名）
 
 
 def load(p, default=None):
@@ -32,6 +34,22 @@ def load(p, default=None):
 
 def esc(s):
     return html.escape(str(s), quote=False)
+
+
+_SF_MAP = None
+_SF_MAP_ROT = None   # 由 render 主函数从 market.json 的 rotation 注入（云端无 ECS 路径）
+
+
+def subfamily_of(code):
+    # 返回股票代码所属细分族名（单值映射），无归属返回 None
+    global _SF_MAP
+    if _SF_MAP is None:
+        _SF_MAP = {}
+        _sf = _SF_MAP_ROT or load(SUBFAMILY_MAP_JSON) or {}
+        for _sb in (_sf.get('subfamilies') or []):
+            for _c in (_sb.get('stocks') or []):
+                _SF_MAP[_c] = _sb.get('sub')
+    return _SF_MAP.get(code)
 
 
 def fnum(v, nd=2):
@@ -159,8 +177,10 @@ def render_snap(env):
 
 
 def pick_tags(r, extra):
-    t = ['<span class="tag">%s</span>' % (esc(r['theme']) if r.get('theme')
-                                         else '行业：%s' % esc(r.get('sector') or '-'))]
+    _sf_name = subfamily_of(r.get('code'))
+    t = ['<span class="tag">%s</span>' % (esc(_sf_name) if _sf_name
+                                         else (esc(r['theme']) if r.get('theme')
+                                               else '行业：%s' % esc(r.get('sector') or '-')))]
     if r.get('theme_review'):
         t.append('<span class="tag w">题材待修正：%s</span>' % esc(r.get('theme_reason') or ''))
     biz = r.get('biz') or ''
@@ -346,6 +366,23 @@ def rot_stage_tag(r):
     return '<span class="tag %s" title="%s">%s</span>' % (key, esc(tip), esc(stg))
 
 
+
+def sub_stage(sub):
+    """细分族阶段推断：首涨/连涨/末端/退潮，用 ret1/ret5/ret20 关系。"""
+    r1 = sub.get('ret1') or 0
+    r5 = sub.get('ret5') or 0
+    r20 = sub.get('ret20') or 0
+    if r5 < 0:
+        return '退潮' if r20 < 0 else '回落'
+    if r20 >= 10 and r1 < 0:
+        return '末端'
+    if r1 >= 0 and r20 < 0:
+        return '首涨'
+    if r5 >= 5:
+        return '连涨'
+    return '震荡'
+
+
 def render_rotation(rot):
     """今日题材轮动（精简版）。"""
     if not rot or not rot.get('trade_date'):
@@ -358,6 +395,16 @@ def render_rotation(rot):
     mstate = rot.get('market_state') or '-'
     mainline = rot.get('mainline') or {}
     focus_names = set((f or {}).get('theme') for f in (rot.get('focus') or []))
+    sfs = rot.get('subfamily_strength') or {}
+    subs_all = sfs.get('subfamilies') or []
+    # 大方向主线状态（读独立文件 direction_strength.json）
+    dstate = {}
+    try:
+        _ds = rot.get('direction_strength') or load(DIRECTION_STRENGTH_JSON) or {}
+        for _d in (_ds.get('directions') or []):
+            dstate[_d.get('direction')] = _d.get('mainline_state') or '轮动'
+    except Exception:
+        pass
 
     boxes = [
         ('市场状态', mstate, '近20日 %s%%' % fnum(rot.get('market_ret20'), 1)),
@@ -374,21 +421,22 @@ def render_rotation(rot):
                   '<div class="v ' + pct_cls(v if isinstance(v, (int, float)) else None) + '">'
                   + esc(v) + '</div><div class="d">' + esc(d) + '</div></div>')
 
-    tr = []
-    for ix, h in enumerate(hot, 1):
-        hname = h.get('theme') or h.get('cluster')
-        nm = esc(hname)
-        if hname in focus_names:
-            nm = '<b>' + nm + '</b> <span class="tag b">本期主攻</span>'
-        tip = '加速度 %s%% · 上涨家数 %s%% · 原始题材 %s' % (
-            fnum(h.get('acc'), 2), fnum((h.get('up1') or 0) * 100, 0),
-            esc('/'.join(h.get('raw_themes') or [hname])))
-        tr.append('<tr><td class="mono">' + str(ix) + '</td><td title="' + tip + '">' + nm + '</td>'
-                  '<td>' + rot_stage_tag(h) + '</td>'
-                  '<td class="r mono ' + pct_cls(h.get('ret1')) + '">' + pct_txt(h.get('ret1')) + '</td>'
-                  '<td class="r mono ' + pct_cls(h.get('ret3')) + '">' + pct_txt(h.get('ret3')) + '</td>'
-                  '<td class="r mono ' + pct_cls(h.get('dist_ma20')) + '">' + pct_txt(h.get('dist_ma20')) + '</td>'
-                  '<td class="r mono">' + str(h.get('n_members') if using_clusters else (h.get('n_pool') or 0)) + '</td></tr>')
+    # 细分族榜：只展示最强 10 + 最弱 10（按 5 日收益），替代全景表
+    def _sf_row(sb):
+        return ('<tr><td>' + esc(sb.get('sub')) + '</td>'
+                '<td>' + esc(sb.get('direction') or '') + '</td>'
+                '<td class="r mono">' + str(sb.get('n_members')) + '</td>'
+                '<td class="r mono ' + pct_cls(sb.get('ret5')) + '">' + pct_txt(sb.get('ret5')) + '</td>'
+                '<td class="r mono ' + pct_cls(sb.get('ret20')) + '">' + pct_txt(sb.get('ret20')) + '</td>'
+                '<td class="r mono">' + ('%.0f%%' % (sb.get('up_share') or 0)) + '</td></tr>')
+    _sf_sorted = sorted(subs_all, key=lambda x: (x.get('ret5') or 0))
+    _sf_weak = _sf_sorted[:10]
+    _sf_strong = sorted(subs_all, key=lambda x: -(x.get('ret5') or 0))[:10]
+    _sf_tbl_head = ('<table><tr><th>细分族</th><th>大方向</th>'
+                    '<th class="r">成员</th><th class="r">5日</th>'
+                    '<th class="r">20日</th><th class="r">上涨占比</th></tr>')
+    _sf_strong_html = _sf_tbl_head + ''.join(_sf_row(x) for x in _sf_strong) + '</table>'
+    _sf_weak_html = _sf_tbl_head + ''.join(_sf_row(x) for x in _sf_weak) + '</table>'
 
     trt = []
     for h in topping:
@@ -398,35 +446,54 @@ def render_rotation(rot):
                    '<td class="r mono ' + pct_cls(h.get('dist_ma20')) + '">' + pct_txt(h.get('dist_ma20')) + '</td>'
                    '<td class="r mono">' + str(h.get('n_pool') or 0) + '</td></tr>')
 
-    trc = []
-    for c in cold:
-        trc.append('<tr><td>' + esc(c.get('theme')) + '</td>'
-                   '<td class="r mono ' + pct_cls(c.get('ret3')) + '">' + pct_txt(c.get('ret3')) + '</td>'
-                   '<td class="r mono ' + pct_cls(c.get('dist_ma20')) + '">' + pct_txt(c.get('dist_ma20')) + '</td>'
-                   '<td class="r mono">' + str(c.get('n_pool') or 0) + '</td></tr>')
-
+    # 12 大方向状态（从细分族强度按成员数加权聚合，替代原"六个候选方向主线状态"）
     watch_rows = []
-    clusters = rot.get('clusters') or {}
-    for label, w in (mainline.get('watchlist') or {}).items():
-        best = clusters.get(w.get('best_cluster')) or {}
-        watch_rows.append('<tr><td>' + esc(label) + '</td><td>' + esc(w.get('state') or '-') + '</td>'
-                          '<td>' + esc(w.get('best_cluster') or '-') + '</td>'
-                          '<td class="r mono ' + pct_cls(best.get('excess5')) + '">' + pct_txt(best.get('excess5')) + '</td>'
-                          '<td class="r mono">' + fnum((best.get('above_ma20_share') or 0) * 100, 0) + '%</td>'
-                          '<td class="r mono">' + fnum((best.get('near_high20_share') or 0) * 100, 0) + '%</td>'
-                          '<td class="r mono">' + pct_txt(best.get('leader_ret10')) + '</td></tr>')
+    if subs_all:
+        ddir = {}
+        for sb in subs_all:
+            k = sb.get('direction') or '未归类'
+            v = ddir.setdefault(k, {'n': 0, 'mem': 0, 'r5': 0.0, 'r20': 0.0, 'up': 0.0, 'lu': 0})
+            m = sb.get('n_members') or 0
+            v['n'] += 1
+            v['mem'] += m
+            v['r5'] += (sb.get('ret5') or 0) * m
+            v['r20'] += (sb.get('ret20') or 0) * m
+            v['up'] += (sb.get('up_share') or 0) * m
+            v['lu'] += (sb.get('lu5') or 0)
+        wrows = []
+        for k, v in ddir.items():
+            mem = v['mem'] if v['mem'] else 1
+            wrows.append((k, v['n'], v['mem'], v['r5'] / mem, v['r20'] / mem,
+                          v['up'] / mem, v['lu']))
+        wrows.sort(key=lambda x: -x[3])
+        for k, nf, mem, r5, r20, up, lu in wrows:
+            st = dstate.get(k, '轮动')
+            st_cls = 'tag b' if st in ('真主线', '主线萌芽') else ('tag gy' if st == '退潮' else '')
+            st_html = ('<span class="' + st_cls + '">' + esc(st) + '</span>') if st_cls else esc(st)
+            watch_rows.append('<tr><td>' + esc(k) + '</td>'
+                              '<td>' + st_html + '</td>'
+                              '<td class="r mono">' + str(nf) + '</td>'
+                              '<td class="r mono">' + str(mem) + '</td>'
+                              '<td class="r mono ' + pct_cls(r5) + '">' + pct_txt(r5) + '</td>'
+                              '<td class="r mono ' + pct_cls(r20) + '">' + pct_txt(r20) + '</td>'
+                              '<td class="r mono">' + ('%.0f%%' % up) + '</td>'
+                              '<td class="r mono">' + str(lu) + '</td></tr>')
 
     out = []
     out.append('<h2>二、今日题材轮动</h2>')
     out.append('<div class="snap">' + ''.join(bx) + '</div>')
     if watch_rows:
-        out.append('<div class="sub" style="margin:10px 0 4px"><b>六个候选方向的主线状态</b>（每日固定口径落盘，供前向验证）</div>')
-        out.append('<table><tr><th>方向</th><th>状态</th><th>代表集群</th>'
-                   '<th class="r">5日超额</th><th class="r">MA20上</th>'
-                   '<th class="r">近20日高</th><th class="r">龙头10日</th></tr>' + ''.join(watch_rows) + '</table>')
-    out.append('<table><tr><th>#</th><th>题材集群</th><th>阶段</th>'
-               '<th class="r">今日</th><th class="r">3日</th>'
-               '<th class="r">距MA20</th><th class="r">' + ('成员' if using_clusters else '池内') + '</th></tr>' + ''.join(tr) + '</table>')
+        out.append('<div class="sub" style="margin:10px 0 4px"><b>12 大方向状态</b>'
+                   '（细分族收益按成员数加权，5 日强弱排序）</div>')
+        out.append('<table><tr><th>大方向</th><th>主线状态</th>'
+                   '<th class="r">细分族</th><th class="r">成员</th>'
+                   '<th class="r">5日</th><th class="r">20日</th>'
+                   '<th class="r">上涨占比</th><th class="r">5日涨停</th></tr>'
+                   + ''.join(watch_rows) + '</table>')
+    out.append('<div class="sub" style="margin:12px 0 6px"><b>细分族最强 10</b>'
+               '（按 5 日收益）</div>' + _sf_strong_html)
+    out.append('<div class="sub" style="margin:12px 0 6px"><b>细分族最弱 10</b>'
+               '（<b>回避区</b>：这些方向正在杀跌）</div>' + _sf_weak_html)
     if trt:
         out.append('<div class="sub" style="margin:14px 0 4px">'
                    '<b>上涨趋势末端</b>（连涨 &ge;' + str(rot.get('top_streak') or 4)
@@ -434,9 +501,6 @@ def render_rotation(rot):
         out.append('<table><tr><th>题材</th><th class="r">连涨</th>'
                    '<th class="r">本轮涨幅</th><th class="r">距MA20</th>'
                    '<th class="r">池内</th></tr>' + ''.join(trt) + '</table>')
-    out.append('<div class="sub" style="margin:14px 0 4px"><b>退潮题材</b>（轮动已走完，回避）</div>')
-    out.append('<table><tr><th>题材</th><th class="r">3日</th>'
-               '<th class="r">距MA20</th><th class="r">池内</th></tr>' + ''.join(trc) + '</table>')
     out.append('<div class="note"><b>怎么读：</b>「阶段」= 首涨 / 连涨第 N 天 / 末端（连涨&ge;4 天）；'
                '热度用<b>全市场</b>成员算，不设成交额门槛；高相关题材已按集群去重，鼠标悬停可看原始题材。'
                '主线状态由相对收益、上涨持续性、MA20广度、近20日新高扩散和龙头强度共同判定，暂只观察不改权重。'
@@ -456,13 +520,19 @@ def render_universe_scan(us):
     rec = [x for x in us['candidates'] if x.get('recommend')]
     if not rec:
         return ''
+    # 股票代码 -> 细分族名（单值映射；无归属的股票回退原 theme）
+    sf_map = {}
+    _sf = load(SUBFAMILY_MAP_JSON) or {}
+    for _sb in (_sf.get('subfamilies') or []):
+        for _c in (_sb.get('stocks') or []):
+            sf_map[_c] = _sb.get('sub')
     rows = []
     for x in rec[:10]:
         rows.append('<tr><td class="mono">' + esc(x.get('code')) + '</td>'
                     '<td>' + esc(x.get('name')) + '</td>'
                     '<td>' + ('<span class="tag gy">池内</span>'
                               if x.get('in_pool') else '<span class="tag w">池外</span>') + '</td>'
-                    '<td>' + esc(x.get('theme')) + '</td>'
+                    '<td>' + esc(sf_map.get(x.get('code')) or x.get('theme') or '') + '</td>'
                     '<td class="r mono ' + pct_cls(x.get('rs')) + '">' + pct_txt(x.get('rs')) + '</td>'
                     '<td class="r mono ' + pct_cls(x.get('mom20')) + '">' + pct_txt(x.get('mom20')) + '</td>'
                     '<td class="r mono">' + fnum(x.get('elast'), 0) + '</td>'
@@ -498,29 +568,30 @@ def render_icepoint(ice):
     if not bursts and not core:
         return ''
     out = []
-    out.append('<h2>三之二、题材冰点骤升 + 券商核心标的（仅供观察，不进 Top5）</h2>')
+    out.append('<h2>三之二、潜在启动题材（仅供观察，不进 Top5）</h2>')
     out.append('<div class="sub" style="margin:16px 0 6px">'
-               '<b>当日「冰点骤升」集群 %d 个</b>（前日上涨占比&lt;20%% → 当日&gt;50%% 且均涨转正，'
-               '集群粒度、等权个股口径）。普涨日该信号会满屏飘红，仅供观察，'
+               '<b>当日「潜在启动」细分族 %d 个</b>（前日上涨占比&lt;20%% → 当日&gt;50%% 且均涨转正，'
+               '细分族粒度、等权个股口径）。普涨日该信号会满屏飘红，仅供观察，'
                '<b>不改 Top5、不参与打分</b>。</div>' % len(bursts))
     if bursts:
         tr = []
         for b in bursts[:20]:
             cls = pct_cls(b.get('cur_mean_ret'))
             txt = pct_txt(b.get('cur_mean_ret'))
-            tr.append('<tr><td>' + esc(b.get('cluster')) + '</td>'
+            tr.append('<tr><td>' + esc(b.get('sub')) + '</td>'
+                      '<td>' + esc(b.get('direction') or '') + '</td>'
                       '<td class="r mono">' + str(b.get('n_members')) + '</td>'
                       '<td class="r mono">' + ('%.0f%%' % (b.get('prev_up_share', 0) * 100)) + '</td>'
                       '<td class="r mono">' + ('%.0f%%' % (b.get('cur_up_share', 0) * 100)) + '</td>'
                       '<td class="r mono ' + cls + '">' + txt + '</td></tr>')
-        out.append('<table><tr><th>集群</th><th class="r">成员</th>'
+        out.append('<table><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
                    '<th class="r">前日占比</th><th class="r">当日占比</th>'
                    '<th class="r">当日均涨</th></tr>' + ''.join(tr) + '</table>')
         if len(bursts) > 20:
             out.append('<div class="note">仅显示涨幅前 20 个，共 %d 个。</div>' % len(bursts))
     if core:
-        out.append('<div class="sub" style="margin:16px 0 6px"><b>冰点骤升集群内的券商核心标的 %d 个</b>'
-                   '（券商点名的正宗龙头；「领涨」= 当日跑赢所在集群均值，'
+        out.append('<div class="sub" style="margin:16px 0 6px"><b>潜在启动细分族内的券商核心标的 %d 个</b>'
+                   '（券商点名的正宗龙头；「领涨」= 当日跑赢所在细分族均值，'
                    '用于验证板块是否真启动，不是买入推荐）</div>' % len(core))
         tr = []
         for c in core[:30]:
@@ -530,149 +601,46 @@ def render_icepoint(ice):
             tr.append('<tr><td class="mono">' + esc(c.get('code')) + '</td>'
                       '<td>' + esc(c.get('name')) + '</td>'
                       '<td>' + esc(c.get('role')) + '</td>'
-                      '<td>' + esc(c.get('cluster')) + '</td>'
+                      '<td>' + esc(c.get('sub') or c.get('cluster')) + '</td>'
                       '<td class="r mono ' + cls + '">' + txt + '</td>'
                       '<td>' + lead + '</td></tr>')
-        out.append('<table><tr><th>代码</th><th>名称</th><th>角色</th><th>集群</th>'
+        out.append('<table><tr><th>代码</th><th>名称</th><th>角色</th><th>细分族</th>'
                    '<th class="r">当日%</th><th>领涨</th></tr>' + ''.join(tr) + '</table>')
     return '\n'.join(out)
 
 
-def render_subfamily(sf):
-    """细分族强度榜（2026-10-31 上线，已参与全市场腿 sf_boost 打分）。"""
-    if not sf:
-        return ''
-    subs = sf.get('subfamilies') or []
-    if not subs:
-        return ''
-    from collections import Counter
-    mkt = sf.get('market_ew_ret_5d')
-    out = []
-    out.append('<h2>三之三、细分族强度榜（%d 个细分族）</h2>' % len(subs))
-    sub_txt = ('<b>141 个细分族</b>由「大方向 ＞ 细分族 ＞ 题材」三级体系构成，'
-               '收益口径 = 族内全部成员<b>等权个股收益率</b>'
-               '（每只票各算涨跌再平均，不是等权价格指数）。')
-    if mkt is not None:
-        sub_txt += '当日全市场等权 5 日 <b>%+.2f%%</b>，下表为该基准下的相对强弱。' % mkt
-    sub_txt += '<b>该因子已进入全市场腿打分（所属细分族强度分位 × 10 分，满分 100），前向观察 4-8 周。</b>'
-    out.append('<div class="sub" style="margin:16px 0 8px">' + sub_txt + '</div>')
-
-    # 大方向汇总
-    dd = {}
-    for s in subs:
-        k = s.get('direction') or '未归类'
-        v = dd.setdefault(k, [0, 0, 0.0])
-        v[0] += 1
-        v[1] += s.get('n_members') or 0
-        v[2] += (s.get('ret5') or 0) * (s.get('n_members') or 0)
-    rows = [(k, v[0], v[1], (v[2] / v[1] if v[1] else 0)) for k, v in dd.items()]
-    rows.sort(key=lambda x: -x[3])
-    tr = []
-    for k, nf, nm, r5 in rows:
-        tr.append('<tr><td>' + esc(k) + '</td>'
-                  '<td class="r mono">' + str(nf) + '</td>'
-                  '<td class="r mono">' + str(nm) + '</td>'
-                  '<td class="r mono ' + pct_cls(r5) + '">' + pct_txt(r5) + '</td></tr>')
-    out.append('<div class="sub" style="margin:12px 0 6px"><b>大方向层面</b>'
-               '（细分族收益按成员数加权）</div>')
-    out.append('<table><tr><th>大方向</th><th class="r">细分族</th>'
-               '<th class="r">成员</th><th class="r">5 日</th></tr>' + ''.join(tr) + '</table>')
-
-    # 最强 / 最弱
-    def _tbl(title, lst, note=''):
-        rs = []
-        for s in lst:
-            rs.append('<tr><td>' + esc(s.get('sub')) + '</td>'
-                      '<td>' + esc(s.get('family')) + '</td>'
-                      '<td>' + esc(s.get('direction')) + '</td>'
-                      '<td class="r mono">' + str(s.get('n_members')) + '</td>'
-                      '<td class="r mono ' + pct_cls(s.get('ret5')) + '">' + pct_txt(s.get('ret5')) + '</td>'
-                      '<td class="r mono ' + pct_cls(s.get('ret10')) + '">' + pct_txt(s.get('ret10')) + '</td>'
-                      '<td class="r mono">' + ('%.0f%%' % (s.get('up_share') or 0)) + '</td></tr>')
-        return ('<div class="sub" style="margin:16px 0 6px"><b>%s</b>%s</div>' % (title, note) +
-                '<table><tr><th>细分族</th><th>原族</th><th>大方向</th>'
-                '<th class="r">成员</th><th class="r">5 日</th><th class="r">10 日</th>'
-                '<th class="r">上涨占比</th></tr>' + ''.join(rs) + '</table>')
-
-    out.append(_tbl('最强 15 个细分族（按 5 日收益）', subs[:15]))
-    out.append(_tbl('最弱 10 个细分族',
-                    sorted(subs, key=lambda x: (x.get('ret5') or 0))[:10],
-                    '（<b>回避区</b>：这些方向正在杀跌，不要在里面找票）'))
-    out.append('<div class="note">细分族榜用于判断「哪个大方向/子赛道在走强」，'
-               '与 Top5 的打分是同一因子（sf_boost），但 Top5 仍由完整 v5 框架决定。</div>')
-    return ''.join(out)
 
 
 def render_market_picks(picks_market):
-    """全市场腿 Top5（趋势型因子，独立于池内 v5 四维）。精简表，因子口径不同不混排。"""
+    """全市场腿 Top5（2026-11-01 新选股：信号日 MA5向上+收红，RSI跳升排序）。"""
     if not picks_market:
         return ''
     tr = []
     for i, r in enumerate(picks_market, 1):
-        trend = '20日%s%% · 连阳%d天%s' % (
-            fnum(r.get('mom20')), r.get('streak') or 0,
-            ' · 均线多头' if r.get('bull') else '')
+        trend = 'RSI6跳升+%s · 量比%s%s' % (
+            fnum(r.get('rsi_jump')), fnum(r.get('vr'), 2),
+            ' · MA5↑收红' if (r.get('ma5_up') and r.get('red')) else '')
         tr.append('<tr><td class="mono">%d</td><td>%s</td><td class="mono">%s</td>'
                   '<td>%s</td><td class="r mono">%.0f</td>'
-                  '<td class="r mono">%s</td><td class="r mono %s">%s</td>'
-                  '<td class="r mono">%s</td><td class="r mono">%s</td>'
-                  '<td>%s</td><td class="r mono">%s</td></tr>'
+                  '<td>%s</td><td class="r mono %s">%s</td>'
+                  '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
                   % (i, esc(r.get('name')), esc(r.get('code')),
-                     esc(r.get('rot_theme') or r.get('industry') or '-'),
+                     esc(subfamily_of(r.get('code')) or r.get('rot_theme') or r.get('industry') or '-'),
                      r.get('pos60') or 0, trend,
-                     pct_cls(r.get('mom20')), pct_txt(r.get('mom20')),
-                     ('-%d' % r.get('crowd_pen')) if r.get('crowd_pen') else '—',
-                     fnum(r.get('sf_boost'), 1),
-                     esc(r.get('sub_family') or '（未覆盖·中性5）'),
-                     fnum(r.get('total'), 1)))
-    return ('<h2>四之二、全市场 Top5（趋势型，为通用化验证）</h2>'
-            '<div class="note">全市场腿使用<b>独立趋势型因子</b>（位置60 20 + 20日 30 + 5日 20 + 连阳 10 + 多头 10'
-            ' + 细分族强度 10 = 100），'
-            '基本面只作门槛不作打分；权重为占位，与备忘2/8回测一起定参。'
-            '<b>本区为模型通用化前置验证，非池内实盘建议。</b></div>'
+                     pct_cls(r.get('pct_chg')), pct_txt(r.get('pct_chg')),
+                     fnum(r.get('rsi6'), 1),
+                     fnum(r.get('pos20'), 0)))
+    note = ('<h2>四之二、全市场 Top5（新选股）</h2>'
+            '<div class="note">全市场腿使用<b>新选股逻辑</b>：信号日「MA5向上 + 收红」确认，'
+            '候选=RSI6跳升15~25 + RSI6&lt;70 + 涨幅2%~涨停 + 量比≥1.5 + 收盘&gt;MA5 + 非跳空'
+            ' + pos60&lt;60 + pos20&lt;80，新池=市值≥30亿/剔ST/剔主板120日无涨停，'
+            '按 RSI 跳升越大越优先。回测超额 +2.35%、胜率 53.8%、抽稀 t 6.53。</div>'
             '<table><tr><th>#</th><th>名称</th><th>代码</th><th>题材</th>'
-            '<th class="r">位置60</th><th>趋势</th><th class="r">20日</th>'
-            '<th class="r">拥挤</th><th class="r">细分族</th><th>所属</th>'
-            '<th class="r">总分</th></tr>%s</table>' % ''.join(tr))
+            '<th class="r">位置60</th><th>信号</th><th class="r">涨幅</th>'
+            '<th class="r">RSI6</th><th class="r">位置20</th></tr>')
+    return note + ''.join(tr) + '</table>'
 
 
-def render_pool(rows, topn=20):
-    shown = rows[:topn] if (topn and len(rows) > topn) else rows
-    tr = []
-    for i, r in enumerate(shown, 1):
-        cap = ' <span class="tag gy">限</span>' if r.get('capped_by') else ''
-        flag = (' <span class="tag w" title="%s">%s</span>' % (esc(r.get('risk_reason') or ''),
-                                                              esc(r.get('risk_flag')))
-                if r.get('risk_flag') else '')
-        tr.append('<tr><td class="mono">%d</td><td>%s</td><td class="mono">%s</td>'
-                  '<td>%s</td><td class="r mono">%s</td><td class="r mono %s">%s</td>'
-                  '<td class="r mono">%s</td><td class="r mono">%s</td>'
-                  '<td class="r mono">%s</td><td>%s</td><td>%s%s</td><td>%s</td></tr>'
-                  % (i, esc(r.get('name')), esc(r.get('code')), esc(r.get('seg') or ''),
-                     fnum(r.get('total'), 1), pct_cls(r.get('chg')), pct_txt(r.get('chg')),
-                     fnum(r.get('dma')), fnum(r.get('totalcap'), 1),
-                     ('-%d' % (r.get('crowd_pen', 0) + r.get('kf_pen', 0)))
-                     if (r.get('crowd_pen') or r.get('kf_pen')) else '—',
-                     theme_cell(r), rot_state_tag(r.get('rot_state')) + ' ' + rot_stage_tag(r),
-                     cap, flag))
-    n = sum(1 for r in rows if not r.get('theme'))
-    notes = []
-    if n:
-        notes.append('<div class="note">题材取自上游人工维护的题材映射表，非算法推断。'
-                     '标「未入题材表」的 %d 只不在表内，此处显示行业分类代替'
-                     '（2026-10-31 起逻辑纯度不再计分，对排名无影响）。</div>' % n)
-    m = sum(1 for r in rows if r.get('risk_flag'))
-    if m:
-        notes.append('<div class="note">规则1（2026-10-12 生效）：观察池内标的不再因利润质量'
-                     '被硬剔除，改打「观察池标记」，%d 只带标记。标记仅提示，'
-                     '不参与评分，对总分与排名无加减影响。</div>' % m)
-    _more = ('<div class="note">共 %d 只参与打分，此处按总分降序显示前 %d 只。</div>'
-             % (len(rows), len(shown))) if len(shown) < len(rows) else ''
-    return ('<h2>五、候选池（共 %d 只，按总分降序）</h2>'
-            '<table><tr><th>#</th><th>名称</th><th>代码</th><th>板块</th><th class="r">总分</th>'
-            '<th class="r">涨跌</th><th class="r">距MA20</th>'
-            '<th class="r">市值亿</th><th>题材</th><th>轮动状态</th><th>标记</th></tr>%s</table>%s'
-            % (len(rows), ''.join(tr), ''.join(notes) + _more))
 
 
 def render_dropped(dropped):
@@ -726,6 +694,8 @@ def render(data_dir, narrative_path, out_path):
     td = market.get('trade_date') or os.path.basename(data_dir.rstrip('/\\'))
     gen = narr.get('generated_at_label') or (market.get('generated_at') or '')[:16].replace('T', ' ')
 
+    global _SF_MAP_ROT
+    _SF_MAP_ROT = (market.get('rotation') or {}).get('subfamily_map')
     uscan = ((market.get('rotation') or {}).get('universe_scan')
              or load(UNIVERSE_SCAN_JSON))
     ice = (market.get('rotation') or {}).get('icepoint_scan') or load(ICEPOINT_SCAN_JSON)
@@ -734,7 +704,6 @@ def render(data_dir, narrative_path, out_path):
             render_rotation(market.get('rotation') or {}),
             render_universe_scan(uscan or {}),
             render_icepoint(ice or {}),
-            render_subfamily(sfs or {}),
             '<h2>四、今日五个标的（按确定性排名）</h2>',
             '<div class="sub" style="margin-bottom:12px">排名即优先级。'
             '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b>'
@@ -752,7 +721,6 @@ def render(data_dir, narrative_path, out_path):
     if narr.get('summary'):
         body.append('<div class="note"><b>操作提示：</b>%s</div>' % narr['summary'])
     body.append(render_market_picks(picks_market))
-    body.append(render_pool(scored))
     body.append(render_dropped(dropped))
     body.append(render_foot(narr))
 
