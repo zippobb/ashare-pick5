@@ -256,8 +256,9 @@ def render_pick(r, i, narr):
         % (' g' if i == 1 else '', i, esc(r.get('name')), esc(r.get('code')),
            esc(r.get('seg') or '-'), pick_tags(r, nd.get('tags_extra')),
            fnum(r.get('close')), pct_cls(chg), pct_txt(chg)))
-    b1 = (bar('位置60', r.get('sp', 0), 20, True) + bar('基本面', r.get('sf', 0), 30, True)
-          + bar('5日动量', r.get('sm5', 0), 20, True) + bar('技术', r.get('st', 0), 30, True)
+    b1 = (bar('资金流', r.get('smf', 0), 25, True) + bar('基本面', r.get('sf', 0), 30, True)
+          + bar('5日动量', r.get('sm5', 0), 20, True) + bar('技术', r.get('st', 0), 15, True)
+          + bar('市值适配', r.get('smv', 0), 10, True)
           + bar('细分族强度', r.get('sf_boost') or 0, 10, True)
           + (bar('题材内相对强势', r.get('srs', 0), 30, True) if r.get('srs') else ''))
     b2 = (bar('技术总分', r.get('tech', 0), 30) + bar('结构健康', r.get('sh') or 0, 3)
@@ -285,12 +286,20 @@ def render_pick(r, i, narr):
         pens.append('拥挤度 −%d' % r['crowd_pen'])
     if r.get('kf_pen'):
         pens.append('利润质量 −%d' % r['kf_pen'])
-    _gross = ((r.get('sp') or 0) + (r.get('sf') or 0) + (r.get('sm5') or 0)
-              + (r.get('st') or 0) + (r.get('sf_boost') or 0))
+    _gross = ((r.get('smf') or 0) + (r.get('sf') or 0) + (r.get('sm5') or 0)
+              + (r.get('st') or 0) + (r.get('smv') or 0) + (r.get('sf_boost') or 0))
     _sfn = r.get('sub_family')
-    crowd = ('<div class="note">总分 = 四维 %s + 细分族 %s = %s%s</div>'
+    crowd = ('<div class="note">总分 = 五维 %s + 细分族 %s = %s%s</div>'
              % (fnum(_gross - (r.get('sf_boost') or 0), 1), fnum(r.get('sf_boost') or 0, 1),
                 fnum(_gross, 1), (' − ' + '、'.join(pens)) if pens else ''))
+    _mf1v, _mf5v = r.get('mf1v'), r.get('mf5v')
+    if _mf1v is not None or _mf5v is not None:
+        crowd += ('<div class="note">主力资金：当日净流入 %s%% 市值 / 近 5 日 %s%%（大单+特大单净额 ÷ 总市值）；'
+                  '位置60 = %s（<b>仅展示，2026-11-04 起不计分</b>，池内 IC≈0）</div>'
+                  % (fnum(_mf1v, 3), fnum(_mf5v, 3), fnum(r.get('sp'), 1)))
+    else:
+        crowd += ('<div class="note">主力资金：<b>本股无资金流数据</b>，资金流项按中性 12.5 分计；'
+                  '位置60 = %s（仅展示，不计分）</div>' % fnum(r.get('sp'), 1))
     if _sfn:
         crowd += ('<div class="note">所属细分族：<b>%s</b>（%s／%s），5 日 %s</div>'
                   % (esc(_sfn), esc(r.get('sub_family_parent') or '-'),
@@ -299,7 +308,7 @@ def render_pick(r, i, narr):
     else:
         crowd += '<div class="note">该股不在细分族体系内（未覆盖 36%），细分族项按中性 5 分计，不奖不罚</div>'
     body = ('<div class="pick-bd"><div class="grid2"><div>'
-            '<h3>综合评分（四维 100 + 细分族 10） <b class="mono %st">%s</b></h3>'
+            '<h3>综合评分（五维 100 + 细分族 10） <b class="mono %st">%s</b></h3>'
             '<div class="bars">%s</div>%s</div>'
             '<div><h3>六维技术评分（上游口径）</h3><div class="bars">%s</div></div></div>'
             '%s%s%s</div>'
@@ -764,8 +773,11 @@ def render(data_dir, narrative_path, out_path):
             '<h2>四、今日五个标的（按确定性排名）</h2>',
             '<div class="sub" style="margin-bottom:12px">排名即优先级。'
             '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b>'
-            '评分框架：位置60 20 + 基本面 30 + 5日动量 20 + 技术 30 + 细分族强度 10 = 110（不含流动性维度）。'
-            '位置60 = 股价在近 60 日高低区间中的相对位置，100 表示创 60 日新高，0 表示 60 日最低。</div>']
+            '评分框架（2026-11-04 起）：<b>资金流 25</b> + 基本面 30 + 5日动量 20 + 技术 15 + '
+            '<b>市值适配 10</b> + 细分族强度 10 = 110（不含流动性维度）。<br>'
+            '<b>资金流</b> = 近 5 日主力（大单+特大单）净流入 ÷ 总市值，在候选集内取分位；'
+            '<b>市值适配</b> = 总市值在候选集内的分位取倒数（小市值高分）；'
+            '<b>位置60</b> = 近 60 日高低区间中的相对位置，<b>已退出计分、仅作展示</b>。</div>']
     body.append(
         '<div class="legend"><b>色条图例（按得分率着色，与涨跌的红/绿配色无关）：</b>'
         '<span><i class="qd" style="background:#0f8a4a"></i>优 · ≥85%</span>'

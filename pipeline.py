@@ -144,6 +144,7 @@ def build_candidates(bundle):
     out = []
     for g in ['official_review_candidates', 'external_review_candidates']:
         for c in bundle.get(g) or []:
+            c['_source'] = 'official' if g == 'official_review_candidates' else 'external'
             seg = c.get('segment')
             if seg in ('北交所', '北证A股', '北证'):
                 continue
@@ -151,6 +152,96 @@ def build_candidates(bundle):
             bare, mkt = code.split('.')
             out.append((bare, code, c.get('name'), 'sh' if mkt == 'SH' else 'sz', mkt, seg, c))
     return out
+
+
+POOL_CODES = None
+
+
+def pool_codes():
+    """观察池代码集合（给候选打 in_pool 标记用）。fail open → 空集（标记置 None）。"""
+    global POOL_CODES
+    if POOL_CODES is None:
+        POOL_CODES = set()
+        try:
+            import csv as _csv
+            with open('/opt/stock-automation/scanner/config/observation_pool.csv',
+                      encoding='utf-8-sig') as f:
+                for r in _csv.DictReader(f):
+                    c = (r.get('ts_code') or '').strip()
+                    if c:
+                        POOL_CODES.add(c)
+        except Exception as e:
+            log('观察池名单读取失败（in_pool 置空）: %s' % e)
+    return POOL_CODES
+
+
+def load_pool_screen():
+    """读 ops/pool_screen.py 产出的观察池位置60 快照。fail open（读不到返回 {}）。"""
+    try:
+        with open(POOL_SCREEN_JSON, encoding='utf-8') as f:
+            d = json.load(f)
+    except Exception:
+        return {}
+    return d or {}
+
+
+def load_pool_scored():
+    """规则8-C：观察池全量技术分回补表（与 scanner 同口径，相关 1.0000）。"""
+    try:
+        d = json.load(open(POOL_SCORED_JSON, encoding='utf-8'))
+    except Exception as e:
+        log('技术分回补表读取失败 %s: %s' % (POOL_SCORED_JSON, e))
+        return {}, None
+    rows = d.get('rows') or []
+    m = {}
+    for r in rows:
+        c = r.get('ts_code')
+        if c and r.get('technical_score') is not None:
+            m[c] = r
+    log('技术分回补表 %s：%d 只可用' % (d.get('trade_date'), len(m)))
+    return m, d.get('trade_date')
+
+
+def expand_from_pool_screen(cands):
+    """返回 (新增候选列表, {bare: 本地K线指标})。快照缺失或全在候选内则返回 ([], {})。"""
+    global POOL_SCORED
+    POOL_SCORED = load_pool_scored()[0]
+    d = load_pool_screen()
+    rows = d.get('rows') or []
+    if not rows:
+        return [], {}
+    have = set(x[0] for x in cands)
+    add, kl = [], {}
+    for r in rows[:POOL_SCREEN_TOP]:
+        code = r.get('ts_code') or ''
+        if '.' not in code:
+            continue
+        bare, mkt = code.split('.')
+        if bare in have:
+            continue
+        p = r.get('pos60')
+        if p is None or p > POOL_SCREEN_MAX_POS:
+            continue
+        # 2026-10-17：把本地日线算出的技术指标塞进候选 dict，
+        # 否则 dma/atr14_pct/kdj_j/rsi14 全为 0，拥挤度扣分与「高位飞刀」标记失真。
+        c = dict(r.get('tech') or {})
+        c['_source'] = 'pool_screen'
+        # 规则8-C：补入票没有 scanner 技术分，用同口径回补值填上，
+        # 避免看板六维细格全 0、四维条却是中位数填充的自相矛盾。
+        sc = POOL_SCORED.get(code)
+        if sc:
+            for k in ('technical_score', 'market_fit_score', 'trend_structure_score',
+                      'stage_pattern_score', 'volume_price_score',
+                      'momentum_relative_strength_score', 'structure_health_score'):
+                if sc.get(k) is not None:
+                    c[k] = sc[k]
+        add.append((bare, code, r.get('name'), 'sh' if mkt == 'SH' else 'sz',
+                    mkt, '-', c))
+        kl[bare] = {'r250': r.get('r250'), 'r120': r.get('r120'),
+                    'ddh': r.get('ddh'), 'mom5': r.get('mom5'),
+                    'mom3': r.get('mom3'), 'pos60': r.get('pos60'),
+                    'bars': r.get('bars')}
+    return add, kl
 
 
 def fetch_quotes(cands):
@@ -273,6 +364,9 @@ def fetch_kline_metrics(cands, trade_date, need=260):
             'bars': len(rows),
             # 规则5（2026-10-13）：5日动量，供"位置维→动量维"（方案D）使用
             'mom5': round((c / cl[-6] - 1) * 100, 2) if len(cl) > 6 else None,
+            # 规则8（2026-10-16）：60 日价格位置，(今收-60日低)/(60日高-60日低)*100
+            'pos60': (round((c - min(cl[-60:])) / (max(cl[-60:]) - min(cl[-60:])) * 100, 2)
+                      if len(cl) >= 60 and max(cl[-60:]) > min(cl[-60:]) else None),
             # 规则6（2026-10-15）：3 日动量，供「题材内相对强势」打分
             'mom3': round((c / cl[-4] - 1) * 100, 2) if len(cl) > 4 else None,
             # 规则5（2026-10-13）：5日动量，供"位置维→动量维"（方案D）使用
@@ -335,7 +429,7 @@ CLUSTERS = [
     ('医药', ['创新药', 'CXO', '原料药', '生物制药', '医药', '医疗器械', '疫苗', '中药',
               '诊断', '重组蛋白', '合成生物', '精准医疗']),
     ('新能源', ['锂电', '固态电池', '光伏', '储能', '风电', '电解液', '电池', '隔膜', '正极', '负极']),
-    ('汽车', ['汽车', '智能驾驶', '汽零', '一体化压铸', '汽车电子', '轮胎', '座椅']),
+    ('汽车', ['汽车', '智能驾驶', '汽零', '一体化压铸', '汽车电子', '轮胎', '座椅', '车身附件', '内饰']),
     ('资源周期', ['有色', '煤炭', '油气', '石油', '航运', '化工', '钢铁', '稀土', '锂矿', '黄金', '农药']),
     ('消费', ['白酒', '食品', '家电', '纺织', '零售', '宠物', '消费', '日化', '农业', '养殖']),
     ('金融地产', ['银行', '券商', '保险', '地产', '金融']),
@@ -435,6 +529,29 @@ INDUSTRY_L3_FALLBACK = {}
 # 用途：只做候选池准入过滤，不参与打分权重（回测证明进权重会变差）
 ELASTICITY = {}
 ELAST_MIN = 18.0
+# ── 规则8-B（2026-10-16）：池内「位置60」初筛，把打分池从 30 只候选扩到观察池 ──
+POOL_SCREEN_JSON = '/opt/stock-automation/scanner/config/pool_screen_latest.json'
+POOL_SCREEN_TOP = 40          # 取池内 pos60 前多少只并入打分池（反转后=低位靠前）
+POOL_SCREEN_MAX_POS = 80.0    # 反向：pos60 高于此值（追高）不并入
+
+# 2026-10-25 方案 E：True = 打分池只用 pool_screen（停用 official / external）；
+# False = 原来的 official + external + pool_screen 混合候选。改回 False 即回滚。
+CANDIDATE_POOL_ONLY = True
+POOL_SCORED_JSON = '/opt/stock-automation/scanner/config/pool_scored_latest.json'
+POOL_SCORED = {}              # 规则8-C：观察池技术分回补表，运行时填充
+
+# 2026-10-26 全市场腿：独立扫描器产出，pipeline 只读取，不重跑全市场打分。
+MARKET_SCAN_JSON = '/opt/stock-automation/scanner/config/market_scan_latest.json'
+
+
+def load_market_scan():
+    """读全市场腿结果。fail open（读不到返回 {}），不阻断池内腿。"""
+    try:
+        with open(MARKET_SCAN_JSON, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        log('全市场扫描结果读取失败（本日无全市场腿）: %s' % e)
+        return {}
 
 
 def load_elasticity():
@@ -514,7 +631,22 @@ EFF_THEME = load_theme_effective()
 # 题材热度必须用**全市场**成员算（池内每题材只有 1~2 只，噪音极大且偏小盘），
 # 再用池内标的兑现。快照由 ops/theme_rotation.py 每日产出。
 # ROTATION_MARK_20261015
-ROT_JSON = '/opt/stock-automation/scanner/config/theme_rotation_latest.json'
+ROT_JSON = os.environ.get(
+    'THEME_ROTATION_JSON', '/opt/stock-automation/scanner/config/theme_rotation_latest.json')
+UNIVERSE_SCAN_JSON = '/opt/stock-automation/scanner/config/theme_universe_scan_latest.json'
+ICEPOINT_SCAN_JSON = '/opt/stock-automation/scanner/config/icepoint_scan_latest.json'
+SUBFAMILY_STRENGTH_JSON = '/opt/stock-automation/scanner/config/subfamily_strength_latest.json'   # 细分族强度（2026-10-31）
+DIRECTION_STRENGTH_JSON = '/opt/stock-automation/scanner/config/direction_strength.json'   # 大方向主线状态（2026-11-01）
+SUBFAMILY_MAP_JSON = '/opt/stock-automation/scanner/config/subfamily_map.json'   # 细分族映射（2026-11-01）
+
+
+def load_json_opt(path):
+    """读 JSON，失败返回 {}（全市场扫描是可选数据，缺了不能中断主流程）。"""
+    try:
+        with open(path, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
 
 def load_theme_rotation():
@@ -527,12 +659,77 @@ def load_theme_rotation():
 
 ROT = load_theme_rotation()
 
+# ── 细分族强度（2026-10-31 接入池内腿）──
+# sf_boost 独立加分 0~10，满分 100→110，与全市场腿同口径。
+# ⚠ 细分族仅覆盖全市场 63.6%（池内 72.8%，55 只无归属）。
+#   无归属 ≠ 弱，若给 0 分等于「因未被人工分类而扣分」，属分类偏差，
+#   故无归属一律给中性 0.5 分位（=5 分），不奖不罚。
+SUB_STRENGTH = load_json_opt(SUBFAMILY_STRENGTH_JSON)
+SUB_STOCK = (SUB_STRENGTH.get('stock_to_subfamily') or {}) if SUB_STRENGTH else {}
+SF_MAX = 10.0          # 细分族强度满分
+SF_NEUTRAL = 0.5       # 无归属时的中性分位
+
+
+# ── 主力资金流（2026-11-04 接入池内腿，手册 §6.20 / §6.21）──
+# 依据：池内 34 因子筛选，资金流是唯一显著为正的类（mf5 fwd3 IC +0.017、抽稀 t 2.26），
+#       且与动量/波动/市值因子相关 ≤0.43；纯资金组合 Top5 超额 fwd5 +3.06%（抽稀 t 3.4）。
+# 数据：ops/fetch_mf_daily.py 每日抓 tushare moneyflow（大单+特大单净额，万元），
+#       存 scanner/data/fund_flow_daily.csv（滚动 15 个交易日）。
+FUND_FLOW_CSV = '/opt/stock-automation/scanner/data/fund_flow_daily.csv'
+MF_MAX = 25.0        # 资金流满分
+MV_MAX = 10.0        # 市值适配满分（小市值优先，2026-11-04 P2）
+
+
+def load_fund_flow():
+    """返回 {6位代码: [(trade_date, net_lg_万元), ...] 升序}；缺失返回 {}。"""
+    import csv as _csv
+    d = {}
+    try:
+        with open(FUND_FLOW_CSV, encoding='utf-8') as f:
+            for row in _csv.DictReader(f):
+                code = (row.get('ts_code') or '').split('.')[0]
+                if not code:
+                    continue
+                try:
+                    net = float(row.get('net_lg'))
+                except (TypeError, ValueError):
+                    continue
+                d.setdefault(code, []).append((row.get('trade_date'), net))
+    except Exception:
+        return {}
+    for k in d:
+        d[k].sort()
+    return d
+
+
+FUND_FLOW = load_fund_flow()
+MF_ASOF = max((r[-1][0] for r in FUND_FLOW.values() if r), default='')
+
+
+def mf_ratios(bare, mv_yi):
+    """主力净流入强度（%）：mf1 = 当日净额/总市值；mf5 = 近5日净额/总市值。"""
+    rows = FUND_FLOW.get(bare) or []
+    if not rows or not mv_yi:
+        return None, None
+    hist = [r for r in rows if not MF_ASOF or r[0] <= MF_ASOF]
+    if not hist:
+        return None, None
+    mv_wan = float(mv_yi) * 1e4          # 亿元 → 万元
+    mf1 = hist[-1][1] / mv_wan * 100.0
+    last5 = hist[-5:]
+    mf5 = (sum(r[1] for r in last5) / mv_wan * 100.0) if len(last5) >= 5 else None
+    return mf1, mf5
+
 
 # 题材内相对强势满分 30（个股 3 日涨幅 − 题材 3 日涨幅，候选集内百分位）
 ROT_RS_MAX = 30.0
 # 三级级联：(排序字段名, TopK) —— 字段见 theme_rotation.py 的 rank / rank_acc / rank_r10
 ROT_STEPS = (('rank', 3), ('rank_acc', 5), ('rank_r10', 5))
-ROT_MIN_CAND = 5
+ROT_MIN_CAND = 3
+# 2026-10-18 由 5 改为 3。276 期回测：门槛 5 时题材优先只生效 10%（27/276），
+# 模块 90% 的日子空转；门槛 3 生效 39%（109/276），且题材期内部 alpha 最高
+# （M3 +2.59% vs M1 +0.59% —— 门槛 1 会混进"池内仅 1~2 只票"的伪题材期）。
+# 各档 alpha 差异均不显著（差值抽稀 t 0.15~0.81），选 3 是机制合理性取舍。
 # 硬过滤未命中时的软加分满分（题材热度横截面分位 × 本值）。
 # 341 天回测（观察池口径，w=30，热度=z(昨日涨幅)+z(加速度)+z(上涨家数占比)）：
 #   纯 D +0.47%/期(t=1.11) → 软加分 +0.84%/期(t=2.33)。弱于硬过滤(+1.08%)但覆盖率 100%。
@@ -550,12 +747,15 @@ def theme_priority(rows, rot, min_cand=ROT_MIN_CAND, steps=ROT_STEPS):
             'FALLBACK' 三轮都没有足够候选，退回现行纯 D（不改动任何分数）
             'OFF'      无快照，同上
     """
-    th = rot.get('themes') or {}
+    clusters = rot.get('clusters') or {}
+    th = clusters or (rot.get('themes') or {})
+    use_cluster = bool(clusters)
     if not th:
         return 'OFF', [], None
     by_th = {}
     for r in rows:
-        by_th.setdefault(r.get('rot_theme') or '', []).append(r)
+        key = (r.get('rot_cluster') or r.get('rot_theme') or '') if use_cluster else (r.get('rot_theme') or '')
+        by_th.setdefault(key, []).append(r)
     for key, k in steps:
         order = sorted([t for t in th if (th[t] or {}).get(key)],
                        key=lambda t: th[t][key])
@@ -566,7 +766,8 @@ def theme_priority(rows, rot, min_cand=ROT_MIN_CAND, steps=ROT_STEPS):
         # 题材内相对强势：个股近 3 日涨幅 − 所属题材近 3 日涨幅
         raw = {}
         for r in cand:
-            t3 = (th.get(r.get('rot_theme')) or {}).get('ret3')
+            key = (r.get('rot_cluster') or r.get('rot_theme')) if use_cluster else r.get('rot_theme')
+            t3 = (th.get(key) or {}).get('ret3')
             m3 = r.get('mom3')
             if m3 is None or t3 is None:
                 continue
@@ -598,34 +799,78 @@ def load_theme_override(cfg):
 
 
 def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
-    # ── 规则5（2026-10-13）：位置维 → 5日动量维（方案 D）──
+    # ── 规则8-B：新增票没有 scanner 的 technical_score / atr14，用同批次中位数填充，
+    # 避免"缺数据=0分"被系统性压制 ──
+    _tv = sorted(float((x[6] or {}).get('technical_score') or 0)
+                 for x in cands if (x[6] or {}).get('technical_score'))
+    TECH_FILL = _tv[len(_tv) // 2] if _tv else 15.0
+    _av = sorted(float((x[6] or {}).get('atr14_pct') or 0)
+                 for x in cands if (x[6] or {}).get('atr14_pct'))
+    ATR_FILL = _av[len(_av) // 2] if _av else 3.0
+    # ── 规则8（2026-10-16）：位置维 = 60 日价格位置分位（取代规则5 的 5 日动量）──
+    # 341 天回测（新池200，配对 alpha）：位置60 +1.756%/期 t=4.29，涨跌市分别为
+    # +1.900(t=3.88) / +1.529(t=2.11)，两个市场状态都显著；
+    # 而 5 日动量 +0.894(t=1.72)，涨市 +0.571(t=0.82) 不显著。
+    # 更关键：Top5 的事前 5 日动量暴露由 31.7% 降到 17.0%，短期反转暴露减半。
+    # ── 规则5（2026-10-13）：位置维 → 5日动量维（方案 D，已被规则8 取代）──
     # 341 天长样本（297 期有效，观察池口径配对 alpha）：D 是唯一显著方案 +0.92%/期（t=2.18）。
     #   上涨市 D(+1.26) ≈ A(+1.23) 都显著；下跌市 D(+0.44) 远好于 A(−0.24，全表最差)。
     # 回测口径 = 弹性门槛后候选池内的横截面百分位排名（越高越好），此处保持一致。
     # 注意：动量是追涨方向，与下方 crowd_penalty（高位高波动扣分）天然对冲，
     #       两者同时保留，可抑制纯追高，不要删掉拥挤度扣分。
     MOM_PCT = {}
+    POS_PCT = {}
+    MF1_PCT = {}
+    MF5_PCT = {}
+    MV_PCT = {}
     _elig = []
+    _pelig = []
+    _mf1 = []
+    _mf5 = []
+    _mv = []
     for bare, code, name, pfx, mkt, seg, c in cands:
         q = tx.get(bare) or {}
         mc = q.get('totalcap_yi') or 0
         amt = q.get('amount_yi') or 0
-        if q.get('is_st') or (mc and mc < 30) or (min_amt and amt and amt < min_amt):
+        if q.get('is_st') or (mc and mc < 10) or (min_amt and amt and amt < min_amt):
             continue
         _el = ELASTICITY.get(code) or ELASTICITY.get(bare)
         if _el is not None and _el < ELAST_MIN:
             continue
         _v = ((kl or {}).get(bare) or {}).get('mom5')
-        if _v is None:
-            continue
-        try:
-            _elig.append((bare, float(_v)))
-        except (TypeError, ValueError):
-            pass
+        if _v is not None:
+            try:
+                _elig.append((bare, float(_v)))
+            except (TypeError, ValueError):
+                pass
+        _p = ((kl or {}).get(bare) or {}).get('pos60')
+        if _p is not None:
+            try:
+                _pelig.append((bare, float(_p)))
+            except (TypeError, ValueError):
+                pass
+        # 2026-11-04：资金流与市值（池内腿新维度）
+        if mc:
+            _mv.append((bare, float(mc)))
+        _f1, _f5 = mf_ratios(bare, mc)
+        if _f1 is not None:
+            _mf1.append((bare, _f1))
+        if _f5 is not None:
+            _mf5.append((bare, _f5))
     _elig.sort(key=lambda kv: kv[1])
     _nn = len(_elig)
     for _i, (_b, _v) in enumerate(_elig):
         MOM_PCT[_b] = (_i + 1) / float(_nn) if _nn else 0.5
+    _pelig.sort(key=lambda kv: kv[1])          # 位置60 越高越好
+    _np = len(_pelig)
+    for _i, (_b, _v) in enumerate(_pelig):
+        POS_PCT[_b] = (_i + 1) / float(_np) if _np else 0.5
+    # 2026-11-04：资金流分位（越高越好）与市值分位（越低越好）
+    for _lst, _d in ((_mf1, MF1_PCT), (_mf5, MF5_PCT), (_mv, MV_PCT)):
+        _lst.sort(key=lambda kv: kv[1])
+        _n = len(_lst)
+        for _i, (_b, _v) in enumerate(_lst):
+            _d[_b] = (_i + 1) / float(_n) if _n else 0.5
     rows, dropped = [], []
     for bare, code, name, pfx, mkt, seg, c in cands:
         q = tx.get(bare) or {}
@@ -635,8 +880,8 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         reason = None
         if q.get('is_st'):
             reason = 'ST/*ST'
-        elif mc and mc < 30:
-            reason = '总市值%.1f亿 < 30亿' % mc
+        elif mc and mc < 10:
+            reason = '总市值%.1f亿 < 10亿' % mc
         elif min_amt and amt and amt < min_amt:
             reason = '成交额%.2f亿 < %s亿' % (amt, min_amt)
         if reason is None:
@@ -688,17 +933,6 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             # 此处统一补到最高档；仅覆盖"无信息 / 待核验"类低档，不覆盖已有实质档位。
             if biz is None or BIZ_SCORE.get(biz, 5) <= 5:
                 biz = u'\u5df2\u6709\u6536\u5165\uff08\u636e\u6750\u6599\uff09'
-        # ── 第 2 层：人工修正表，非空字段才覆盖（优先级最高）──
-        ov = (ovr or {}).get(code) or (ovr or {}).get(bare) or {}
-        if ov:
-            if ov.get('theme'):
-                theme = ov['theme']
-            if ov.get('biz'):
-                biz = ov['biz']
-            if ov.get('fact'):
-                fact = ov['fact']
-            theme_src = 'manual_override'
-            need_review, review_reason = False, ''
         # ── 第 2 层：人工修正表，非空字段才覆盖（优先级最高）──
         ov = (ovr or {}).get(code) or (ovr or {}).get(bare) or {}
         if ov:
@@ -763,12 +997,41 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         # 若沿用旧 technical_score 反而恶化至 -3.47%。
         # 规则5（2026-10-13）：位置维改为 5 日动量百分位（满分 20）
         # 旧式：s_pos = max(0.0, 20.0 * (1 - dma / 3.0))  # 距MA20越近越好，T+5 IC 仅 +0.025
-        s_pos = 20.0 * MOM_PCT.get(bare, 0.5)
+        # 规则8：位置维由「5日动量分位」改为「60日价格位置分位」
+        # 2026-11-04（P2）：位置60 退出计分（池内 IC≈0），仅保留展示；权重让给资金流与市值。
+        s_pos = 20.0 * (1.0 - POS_PCT.get(bare, 0.5))   # 仅展示，不计入总分
         mom5 = ((kl or {}).get(bare) or {}).get('mom5')
+        pos60 = ((kl or {}).get(bare) or {}).get('pos60')
         s_fun = roe_score(roe) * 30.0 / 25.0
-        s_biz = BIZ_SCORE.get(biz, 4 if biz is None else 5) * 20.0 / 15.0
-        s_tec = 30.0 * min(1.0, (c.get('technical_score') or 0) / 30.0)
-        atr_pct = c.get('atr14_pct') or 0
+        # ★ 2026-10-31：第三维由「逻辑纯度」替换为「5日动量分位」。
+        # 原因：逻辑分在实盘 40 只候选里只有 3 种取值、85% 同值 5.3，
+        #      且「题材==主业」自动补档使白酒/医疗/汽配白送 14.7 分，
+        #      实测 4 个分段 IC 符号无一致性、全样本零回测记录 → 判定为伪因子。
+        # 动量5：340 天池内 IC +0.025~0.061，3/4 分段同号，
+        #      控制 pos60 后偏 IC 保真度 104%（信息独立），为现有技术面因子中相对最优。
+        #      ⚠ 未通过「抽稀 t ≥ 2」门槛，属前向观察项。
+        s_biz = BIZ_SCORE.get(biz, 4 if biz is None else 5) * 20.0 / 15.0   # 仅展示，不再计分
+        s_mom5 = 20.0 * MOM_PCT.get(bare, 0.5)                             # 第三维：5日动量分位
+        # 资金流（25 分）：mf1 与 mf5 各半；缺 mf5 时退回 mf1；全缺 → 中性 0.5
+        _p1 = MF1_PCT.get(bare)
+        _p5 = MF5_PCT.get(bare)
+        if _p1 is not None and _p5 is not None:
+            _mfpct = (_p1 + _p5) / 2.0
+        elif _p1 is not None:
+            _mfpct = _p1
+        elif _p5 is not None:
+            _mfpct = _p5
+        else:
+            _mfpct = 0.5
+        s_mf = MF_MAX * _mfpct
+        # 市值适配（10 分）：小市值高分（池内 log_mv IC 单调为负、4/4 分段同号）
+        _mvp = MV_PCT.get(bare)
+        s_mv = MV_MAX * (1.0 - (_mvp if _mvp is not None else 0.5))
+        s_tec = 15.0 * min(1.0, (c.get('technical_score') or TECH_FILL) / 30.0)
+        _r1, _r5 = mf_ratios(bare, mc)
+        _mf1v = round(_r1, 3) if _r1 is not None else None
+        _mf5v = round(_r5, 3) if _r5 is not None else None
+        atr_pct = c.get('atr14_pct') or ATR_FILL
         km = (kl or {}).get(bare) or {}
         cpen, ctag = crowd_penalty(km.get('r250'), atr_pct, dma)
         pen = cpen + kf_pen
@@ -780,6 +1043,11 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
                or _effc.get('primary_eff') or theme or '')
         _rd = (ROT.get('themes') or {}).get(_rt) or {}
         rot_theme = _rt
+        # 2026-10-26：保留原始题材用于解释；轮动指标优先使用高相关题材集群。
+        rot_cluster = (ROT.get('theme_to_cluster') or {}).get(_rt) or _rt
+        _cd = (ROT.get('clusters') or {}).get(rot_cluster) or {}
+        if _cd:
+            _rd = _cd
         rot_state = _rd.get('state') or '-'
         rot_rank = _rd.get('rank') or 0
         rot_ret1 = _rd.get('ret1')
@@ -804,7 +1072,13 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         if rot_topping:
             stage_flag = '题材末端·连涨%d天（本轮 +%.1f%%）' % (
                 rot_streak or 0, rot_run_gain or 0.0)
-        total = s_pos + s_fun + s_biz + s_tec - pen
+        # ── 细分族强度加分（2026-10-31）：0~10 分，满分 100→110 ──
+        _sfd = SUB_STOCK.get(code) or SUB_STOCK.get(bare) or {}
+        if _sfd:
+            sf_boost = round(SF_MAX * float(_sfd.get('sub_pct') or 0.0), 1)
+        else:
+            sf_boost = round(SF_MAX * SF_NEUTRAL, 1)      # 无归属 → 中性 5 分
+        total = s_mf + s_fun + s_mom5 + s_tec + s_mv + sf_boost - pen
 
         rows.append({
             'code': code, 'name': name, 'seg': seg,
@@ -813,6 +1087,7 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             'listing': (listing.get(bare) or {}).get('LISTING_DATE'),
             'dma': round(dma, 2), 'atr': round(c.get('atr14_pct') or 0, 2),
             'mom5': mom5, 'mompct': round(MOM_PCT.get(bare, 0.5), 3),
+            'pos60': pos60, 'pospct': round(POS_PCT.get(bare, 0.5), 3),
             'tech': round(c.get('technical_score') or 0, 2),
             'sh': c.get('structure_health_score'), 'tsc': c.get('trend_structure_score'),
             'vp': round(c.get('volume_price_score') or 0, 2),
@@ -850,9 +1125,18 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             'sector': c.get('sector'), 'secrank': c.get('sector_rank'),
             'setup': c.get('setup_type'),
             'quant_rank': c.get('quant_rank'), 'quant_score': round(c.get('quant_score') or 0, 2),
-            'sp': round(s_pos, 1), 'sf': round(s_fun, 1), 'sb': round(s_biz, 1), 'st': round(s_tec, 1),
+            'sp': round(s_pos, 1), 'sf': round(s_fun, 1), 'sm5': round(s_mom5, 1),
+            'smf': round(s_mf, 1), 'smv': round(s_mv, 1),
+            'mf1v': _mf1v, 'mf5v': _mf5v,
+            'mfp': round(_mfpct, 3), 'mvp': round(_mvp, 3) if _mvp is not None else None,
+            'sb': round(s_biz, 1), 'st': round(s_tec, 1),
+            'sf_boost': sf_boost,
+            'sub_family': _sfd.get('sub'), 'sub_family_parent': _sfd.get('family'),
+            'sub_family_direction': _sfd.get('direction'),
+            'sub_ret5': _sfd.get('sub_ret5'), 'sub_rank': _sfd.get('sub_rank'),
             'total': round(total, 1),
-            'rot_theme': rot_theme, 'rot_state': rot_state, 'rot_rank': rot_rank,
+            'rot_theme': rot_theme, 'rot_cluster': rot_cluster,
+            'rot_state': rot_state, 'rot_rank': rot_rank,
             'rot_ret1': rot_ret1, 'rot_ret3': rot_ret3, 'rot_ret5': rot_ret5,
             'rot_pct': rot_pct, 'mom3': km.get('mom3'),
             'rot_heat_pct': _rd.get('heat_pct'), 'rot_heat': _rd.get('heat'),
@@ -861,6 +1145,9 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
             'rot_dist_ma20': rot_dist_ma20, 'rot_trend': rot_trend,
             'rot_topping': rot_topping, 'stage_flag': stage_flag,
             'srs': 0.0, 'srot': 0.0, 'total_rot': round(total, 1),
+            # 2026-10-25（A1）：真实打分快照需要来源与池内标记，供前向评估
+            'source': c.get('_source') or 'official',
+            'in_pool': (code in pool_codes()) if pool_codes() else None,
         })
     rows.sort(key=lambda r: -r['total'])
     return rows, dropped
@@ -879,10 +1166,11 @@ def llm_comment(cfg, rows, trade_date, dropped):
     lines = []
     for i, r in enumerate(top, 1):
         lines.append(
-            '%d. %s(%s/%s) 总分%.1f[动量%.0f/基本%.0f/逻辑%.0f/技术%.0f] 收盘%.2f 涨%.2f%% '
+            '%d. %s(%s/%s) 总分%.1f[资金%.0f/基本%.0f/动量5=%.0f/技术%.0f/市值%.0f/细分族%.0f] 收盘%.2f 涨%.2f%% '
             '距MA20=%.2fATR 市值%.0f亿 ROE=%s 营收%.2f亿 归母%.2f亿 扣非%.2f亿(占比%s) '
             'J=%.1f RSI=%.1f 量比%.2f 5日%.1f%% 20日%.1f%% 题材=%s 落地=%s 事实=%s'
-            % (i, r['name'], r['code'], r['seg'], r['total'], r['sp'], r['sf'], r['sb'], r['st'],
+            % (i, r['name'], r['code'], r['seg'], r['total'], r.get('smf') or 0, r['sf'], r['sm5'],
+               r['st'], r.get('smv') or 0, r.get('sf_boost') or 0,
                r['close'] or 0, r['chg'] or 0, r['dma'], r['totalcap'] or 0, r['roe'],
                r['rev'], r['np'], r['kf_yi'] if r['kf_yi'] is not None else -1,
                ('%.0f%%' % (r['kf_ratio'] * 100)) if r['kf_ratio'] is not None else 'NA',
@@ -893,7 +1181,8 @@ def llm_comment(cfg, rows, trade_date, dropped):
 
     prompt = (
         '你是A股短线选股助理。以下是 %s 收盘后由一个量化打分系统产出的候选池与打分明细。\n'
-        '打分框架：5日动量20（候选池内横截面百分位，越强越好）+ 基本面30（ROE分档）+ 逻辑纯度20（已有收入>有实证>待核验）+ 技术30（六维重构分），满分100；另扣拥挤度与利润质量分。\n'
+        '打分框架：位置60 20（60日价格位置分位）+ 基本面30（ROE分档）+ 5日动量20（候选池内横截面分位）+ 技术30（六维重构分）+ 细分族强度10（所属细分族5日强度分位），满分110；另扣拥挤度与利润质量分。\n'
+        '注：逻辑纯度已自 2026-10-31 起仅作展示、不计分。\n'
         '用户约束：短线持仓；沪市主板+深市主板+创业板+科创板；不吃流动性折价（资金量小）；实际只买1-2只。\n'
         '请输出严格 JSON（不要 markdown 代码块），结构：\n'
         '{"market_view":"<80字内市场判断>","top_rationale":[{"code":"","name":"","reason":"<60字，说明为什么排这个位置>","risk":"<40字主要风险>"}],'
@@ -935,7 +1224,8 @@ def archive(cfg, trade_date, payload):
     out_root = abspath(cfg['out_dir'])
     day_dir = os.path.join(out_root, trade_date)
     os.makedirs(day_dir, exist_ok=True)
-    for k in ('verify', 'scored', 'dropped', 'picks', 'market', 'comment'):
+    for k in ('verify', 'scored', 'dropped', 'picks', 'market', 'comment',
+              'picks_market', 'scored_market'):
         if k in payload:
             json.dump(payload[k], open(os.path.join(day_dir, k + '.json'), 'w', encoding='utf-8'),
                       ensure_ascii=False, indent=1)
@@ -1036,8 +1326,30 @@ def main():
     if not bundle:
         log('bundle 未找到')
         return 2
-    cands = build_candidates(bundle)
-    log('候选 %d 只（已剔北交所）' % len(cands))
+    # ── 2026-10-25 方案 E（用户拍板上线）：打分池只保留 pool_screen ──
+    # 依据 docs/回测-周频非重叠检验-20261025.md：fwd5 上 E 对 C、对 D 均 6/6 非重叠窗口为正。
+    # 注意：bundle 仍必须读取（market.json 的 env/rules/pool_counts 与 manifest 校验要用）。
+    _cand_mode = 'bundle'
+    if CANDIDATE_POOL_ONLY:
+        cands = []
+        _cand_mode = 'pool_screen'
+        log('方案 E：仅使用 pool_screen 候选（official / external 已停用）')
+    else:
+        cands = build_candidates(bundle)
+        log('候选 %d 只（已剔北交所）' % len(cands))
+    # ── 规则8-B：并入观察池内位置60 靠前的票，K线用本地快照（零网络）──
+    _cands_orig = list(cands)
+    _ps_add, _ps_kl = expand_from_pool_screen(cands)
+    if CANDIDATE_POOL_ONLY and not _ps_add:
+        # 兜底：pool_screen 快照缺失或全被过滤时，绝不能让当日打分池为空
+        log('⚠ pool_screen 无有效候选（快照缺失/全被过滤），回退 bundle 候选（official+external）')
+        cands = build_candidates(bundle)
+        _cands_orig = list(cands)
+        _cand_mode = 'bundle_fallback'
+        _ps_add, _ps_kl = expand_from_pool_screen(cands)
+    if _ps_add:
+        cands = cands + _ps_add
+        log('池内位置60 补入 %d 只，打分池 %d 只' % (len(_ps_add), len(cands)))
 
     tx = fetch_quotes(cands)
     miss = [c[1] for c in cands if c[0] not in tx]
@@ -1054,7 +1366,8 @@ def main():
                         'tx': tx.get(bare), 'listing': listing.get(bare),
                         'fin': fin.get(bare), 'kf': kf.get(bare)}
 
-    kl = fetch_kline_metrics(cands, want)
+    kl = fetch_kline_metrics(_cands_orig, want)
+    kl.update(_ps_kl)          # 规则8-B：池内补入的票用本地快照，不额外请求
     log('K线就绪 %d/%d 只' % (len(kl), len(cands)))
 
     ovr = load_theme_override(cfg)
@@ -1091,8 +1404,9 @@ def main():
             head = sorted([r for r in rows if r['code'] in _cs], key=lambda r: -r['total_rot'])
             tail = sorted([r for r in rows if r['code'] not in _cs], key=lambda r: -r['total'])
             rows = head + tail
+            _rot_table = ROT.get('clusters') or ROT.get('themes') or {}
             log('题材优先命中：%s（候选 %d 只）' % (
-                '/'.join('%s[%s]' % (t, (ROT['themes'][t] or {}).get('state')) for t in rot_hot),
+                '/'.join('%s[%s]' % (t, (_rot_table.get(t) or {}).get('state')) for t in rot_hot),
                 len(_cs)))
         else:
             # 软加分回退：热题材在池内凑不出足够候选时，仍让题材热度参与排序。
@@ -1131,7 +1445,11 @@ def main():
         'env': bundle.get('market_environment') or {},
         'pool_counts': {'official': len(bundle.get('official_review_candidates') or []),
                         'external': len(bundle.get('external_review_candidates') or []),
-                        'scored': len(rows), 'dropped': len(dropped)},
+                        'scored': len(rows), 'dropped': len(dropped),
+                        'candidate_mode': _cand_mode,
+                        'top5_out_pool': sum(1 for r in picks if r.get('in_pool') is False),
+                        'top5_by_source': {s: sum(1 for r in picks if r.get('source') == s)
+                                           for s in ('official', 'external', 'pool_screen')}},
         'rotation': {
             'mode': rot_mode,
             'trade_date': ROT.get('trade_date'),
@@ -1139,8 +1457,12 @@ def main():
             'market_ret1': ROT.get('market_ret1'), 'market_ret5': ROT.get('market_ret5'),
             'n_themes': ROT.get('n_themes'), 'state_count': ROT.get('state_count'),
             'hot_top10': ROT.get('hot_top10') or [],
+            'hot_clusters': ROT.get('hot_clusters') or [],
+            'clusters': ROT.get('clusters') or {},
+            'theme_to_cluster': ROT.get('theme_to_cluster') or {},
+            'mainline': ROT.get('mainline') or {},
             'cold_bottom5': ROT.get('cold_bottom5') or [],
-            'focus': [dict(((ROT.get('themes') or {}).get(t) or {}), theme=t) for t in rot_hot],
+            'focus': [dict((((ROT.get('clusters') or ROT.get('themes') or {}).get(t)) or {}), theme=t) for t in rot_hot],
             'n_cand': len(rot_codes) if rot_codes else 0,
             'off_mkt': ROT_OFF_MKT,
             'n_up_themes': ROT.get('n_up_themes'),
@@ -1149,6 +1471,11 @@ def main():
             'market_ret20': ROT.get('market_ret20'),
             'stage_count': ROT.get('stage_count'),
             'top_streak': ROT.get('top_streak'),
+            'universe_scan': load_json_opt(UNIVERSE_SCAN_JSON),
+            'icepoint_scan': load_json_opt(ICEPOINT_SCAN_JSON),
+            'subfamily_strength': load_json_opt(SUBFAMILY_STRENGTH_JSON),
+            'direction_strength': load_json_opt(DIRECTION_STRENGTH_JSON),
+            'subfamily_map': load_json_opt(SUBFAMILY_MAP_JSON),
             'topping': sorted(
                 [dict(v, theme=t) for t, v in (ROT.get('themes') or {}).items()
                  if v.get('topping_risky')],
@@ -1157,21 +1484,46 @@ def main():
         'risk_controls': {'cluster_cap': cfg.get('cluster_cap', 2), 'cluster_capped': capped,
                           'crowd_rule': '年涨幅+ATR%+贴均线，实验参数未回测'},
     }
+    # ── 2026-10-26 全市场腿：读取独立扫描器结果，与池内腿并列，互不竞争 ──
+    mkt_scan = load_market_scan()
+    picks_market = (mkt_scan.get('top5') or [])
+    scored_market = (mkt_scan.get('rows') or [])
+    market['legs'] = {
+        'pool': {'candidate_mode': _cand_mode, 'n_scored': len(rows),
+                 'top5': picks, 'top5_out_pool': sum(1 for r in picks if r.get('in_pool') is False)},
+        'market': {'trade_date': mkt_scan.get('trade_date'), 'universe': mkt_scan.get('universe'),
+                   'n_scored': len(scored_market), 'top5': picks_market},
+    }
     day_dir = archive(cfg, want, {'verify': verify, 'scored': rows,
                                   'dropped': dropped, 'picks': picks,
-                                  'market': market, 'comment': comment})
+                                  'market': market, 'comment': comment,
+                                  'picks_market': picks_market,
+                                  'scored_market': scored_market})
     log('存档 -> %s' % day_dir)
+    if picks_market:
+        log('全市场腿 Top5：%s' % ', '.join(r['name'] for r in picks_market))
     push_results(cfg, want, day_dir)
 
     print('\n=== Top5 (%s) ===' % want)
     for i, r in enumerate(picks, 1):
-        print('%d. %-8s %-6s %5.1f | 动量%.0f 基本%.0f 逻辑%.0f 技术%.0f 拥挤-%d 质量-%d | 扣非%s | %s/%s' % (
-            i, r['name'], r['code'], r['total'], r['sp'], r['sf'], r['sb'], r['st'],
-            r['crowd_pen'], r['kf_pen'], r['kf_flag'], r['theme'], r['cluster'] or '未归类'))
+        print('%d. %-8s %-6s %5.1f | 资金%.0f 基本%.0f 动量5=%.0f 技术%.0f 市值%.0f 拥挤-%d 质量-%d'
+              ' | 扣非%s | %s/%s' % (
+                  i, r['name'], r['code'], r['total'], r.get('smf') or 0, r['sf'], r['sm5'],
+                  r['st'], r.get('smv') or 0,
+                  r['crowd_pen'], r['kf_pen'], r['kf_flag'], r['theme'], r['cluster'] or '未归类'))
+    if picks_market:
+        print('=== 全市场 Top5 (%s) ===' % want)
+        for i, r in enumerate(picks_market, 1):
+            print('%d. %-8s %-6s 涨%+.2f%% | RSI跳%+.1f RSI6=%.0f 量比%.2f pos60=%.0f%s | %s' % (
+                i, r['name'], r['code'], r.get('pct_chg') or 0,
+                r.get('rsi_jump') or 0, r.get('rsi6') or 0,
+                r.get('vr') or 0, r.get('pos60') or 0,
+                ' MA5↑收红' if (r.get('ma5_up') and r.get('red')) else '',
+                r.get('rot_theme') or r.get('industry') or '-'))
     if rot_codes:
         print('题材优先模式：%s | 候选 %d 只' % (
-            '/'.join('%s[%s]' % (t, (ROT['themes'][t] or {}).get('state')) for t in rot_hot),
-            len(rot_codes)))
+            '/'.join('%s[%s]' % (t, ((ROT.get('clusters') or ROT.get('themes') or {}).get(t) or {}).get('state'))
+                     for t in rot_hot), len(rot_codes)))
     for i, r in enumerate(picks, 1):
         _rs = (r.get('srs') or 0) if rot_mode == 'THEME' else (r.get('srot') or 0)
         print('   %d. %s %s +%.1f → 总分 %.1f（题材 %s · %s · %s）%s'
