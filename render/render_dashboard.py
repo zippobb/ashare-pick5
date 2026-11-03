@@ -306,7 +306,7 @@ def render_pick(r, i, narr):
                      esc(r.get('sub_family_direction') or '-'),
                      pct_txt(r.get('sub_ret5')) if r.get('sub_ret5') is not None else '—'))
     else:
-        crowd += '<div class="note">该股不在细分族体系内（未覆盖 36%），细分族项按中性 5 分计，不奖不罚</div>'
+        crowd += '<div class="note">该股不在细分族体系内（未覆盖 36%），细分族项按中性 7.5 分计（15×0.5），不奖不罚</div>'
     body = ('<div class="pick-bd"><div class="grid2"><div>'
             '<h3>综合评分（五维 100 + 细分族 10） <b class="mono %st">%s</b></h3>'
             '<div class="bars">%s</div>%s</div>'
