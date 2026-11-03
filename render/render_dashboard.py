@@ -383,7 +383,71 @@ def sub_stage(sub):
     return '震荡'
 
 
-def render_rotation(rot):
+def render_start59(ice, subs_all):
+    """题材启动：5–9% 温和启动（§6.19 最优档），替代原「细分族最强10/最弱10」。
+
+    口径：冰点骤升（前日上涨占比<20% + 当日>50% + 当日均涨>0）
+          且 当日族内最高涨幅 落在 5%~9%。
+    当日无信号时回溯最近一个有信号的交易日（看板兜底）。
+    """
+    if not ice:
+        return ''
+    today = ice.get('start_59') or []
+    fallback = [] if today else (ice.get('recent_59') or [])
+    rows_src = today or fallback
+    lsd = ice.get('last_start_date') or ''
+    cnt = ice.get('counts') or {}
+    if not rows_src and not ice.get('trade_date'):
+        return ''
+    ret5 = {}
+    for sb in (subs_all or []):
+        if sb.get('sub') is not None:
+            ret5[sb['sub']] = sb.get('ret5')
+
+    def _row(b):
+        r5 = ret5.get(b.get('sub'))
+        return ('<tr><td>' + esc(b.get('sub')) + '</td>'
+                '<td>' + esc(b.get('direction') or '') + '</td>'
+                '<td class="r mono">' + str(b.get('n_members') or 0) + '</td>'
+                '<td class="r mono">' + ('%.0f%%' % ((b.get('prev_up_share') or 0) * 100)) + '</td>'
+                '<td class="r mono">' + ('%.0f%%' % ((b.get('cur_up_share') or 0) * 100)) + '</td>'
+                '<td class="r mono ' + pct_cls(b.get('cur_mean_ret')) + '">'
+                + pct_txt(b.get('cur_mean_ret')) + '</td>'
+                '<td class="r mono ' + pct_cls(b.get('max_pct')) + '">'
+                + pct_txt(b.get('max_pct')) + '</td>'
+                '<td>' + esc((b.get('max_name') or '') + ' ' + (b.get('max_code') or '')) + '</td>'
+                '<td class="r mono ' + pct_cls(r5) + '">' + pct_txt(r5) + '</td></tr>')
+
+    head = ('<table><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
+            '<th class="r">前日占比</th><th class="r">当日占比</th>'
+            '<th class="r">当日均涨</th><th class="r">族内最高</th>'
+            '<th>领涨股</th><th class="r">族5日</th></tr>')
+
+    out = []
+    if rows_src:
+        tag = '' if today else (' · 回溯至 ' + esc(lsd or '-'))
+        out.append('<div class="sub" style="margin:12px 0 6px">'
+                   '<b>题材启动 · 温和档（5–9%）' + str(len(rows_src)) + ' 个</b>'
+                   + tag + '</div>')
+        out.append(head + ''.join(_row(b) for b in rows_src[:15]) + '</table>')
+        if len(rows_src) > 15:
+            out.append('<div class="note">仅显示当日均涨幅前 15 个，共 ' + str(len(rows_src))
+                       + ' 个。</div>')
+    else:
+        out.append('<div class="sub" style="margin:12px 0 6px">'
+                   '<b>题材启动 · 温和档（5–9%）</b>：今日与近 5 日均无符合的细分族</div>')
+    out.append('<div class="note"><b>为什么只列 5–9%：</b>「启动」= 冰点骤升（前一日上涨占比'
+               '&lt;20%、当日&gt;50% 且均涨转正），再要求<b>当日族内最高涨幅落在 5%–9%</b>。'
+               '回测 6192 个启动事件：这一档后续最好（5 日超额 +0.65%、10 日 +1.34%、胜率 60.2%），'
+               '温和上涨说明资金在吸筹、还有空间；涨停级（&ge;15%）反而最差（10 日仅 +0.20%），'
+               '当日已把情绪打满。<b>本区只观察，不进 Top5、不参与打分。</b>'
+               '今日分布：冰点骤升 ' + str(cnt.get('bursts', 0)) + ' 个（5–9% 温和 '
+               + str(cnt.get('start_59', 0)) + ' / &ge;9% 过热 ' + str(cnt.get('over9', 0))
+               + ' / &lt;5% 弱势 ' + str(cnt.get('under5', 0)) + '）。</div>')
+    return '\n'.join(out)
+
+
+def render_rotation(rot, ice=None):
     """今日题材轮动（精简版）。"""
     if not rot or not rot.get('trade_date'):
         return ''
@@ -420,23 +484,6 @@ def render_rotation(rot):
         bx.append('<div class="sbox"><div class="k">' + esc(k) + '</div>'
                   '<div class="v ' + pct_cls(v if isinstance(v, (int, float)) else None) + '">'
                   + esc(v) + '</div><div class="d">' + esc(d) + '</div></div>')
-
-    # 细分族榜：只展示最强 10 + 最弱 10（按 5 日收益），替代全景表
-    def _sf_row(sb):
-        return ('<tr><td>' + esc(sb.get('sub')) + '</td>'
-                '<td>' + esc(sb.get('direction') or '') + '</td>'
-                '<td class="r mono">' + str(sb.get('n_members')) + '</td>'
-                '<td class="r mono ' + pct_cls(sb.get('ret5')) + '">' + pct_txt(sb.get('ret5')) + '</td>'
-                '<td class="r mono ' + pct_cls(sb.get('ret20')) + '">' + pct_txt(sb.get('ret20')) + '</td>'
-                '<td class="r mono">' + ('%.0f%%' % (sb.get('up_share') or 0)) + '</td></tr>')
-    _sf_sorted = sorted(subs_all, key=lambda x: (x.get('ret5') or 0))
-    _sf_weak = _sf_sorted[:10]
-    _sf_strong = sorted(subs_all, key=lambda x: -(x.get('ret5') or 0))[:10]
-    _sf_tbl_head = ('<table><tr><th>细分族</th><th>大方向</th>'
-                    '<th class="r">成员</th><th class="r">5日</th>'
-                    '<th class="r">20日</th><th class="r">上涨占比</th></tr>')
-    _sf_strong_html = _sf_tbl_head + ''.join(_sf_row(x) for x in _sf_strong) + '</table>'
-    _sf_weak_html = _sf_tbl_head + ''.join(_sf_row(x) for x in _sf_weak) + '</table>'
 
     trt = []
     for h in topping:
@@ -490,10 +537,9 @@ def render_rotation(rot):
                    '<th class="r">5日</th><th class="r">20日</th>'
                    '<th class="r">上涨占比</th><th class="r">5日涨停</th></tr>'
                    + ''.join(watch_rows) + '</table>')
-    out.append('<div class="sub" style="margin:12px 0 6px"><b>细分族最强 10</b>'
-               '（按 5 日收益）</div>' + _sf_strong_html)
-    out.append('<div class="sub" style="margin:12px 0 6px"><b>细分族最弱 10</b>'
-               '（<b>回避区</b>：这些方向正在杀跌）</div>' + _sf_weak_html)
+    _start_html = render_start59(ice, subs_all)
+    if _start_html:
+        out.append(_start_html)
     if trt:
         out.append('<div class="sub" style="margin:14px 0 4px">'
                    '<b>上涨趋势末端</b>（连涨 &ge;' + str(rot.get('top_streak') or 4)
@@ -568,11 +614,15 @@ def render_icepoint(ice):
     if not bursts and not core:
         return ''
     out = []
-    out.append('<h2>三之二、潜在启动题材（仅供观察，不进 Top5）</h2>')
+    out.append('<h2>三之二、潜在启动题材（全档对照，仅供观察）</h2>')
     out.append('<div class="sub" style="margin:16px 0 6px">'
                '<b>当日「潜在启动」细分族 %d 个</b>（前日上涨占比&lt;20%% → 当日&gt;50%% 且均涨转正，'
-               '细分族粒度、等权个股口径）。普涨日该信号会满屏飘红，仅供观察，'
-               '<b>不改 Top5、不参与打分</b>。</div>' % len(bursts))
+               '细分族粒度、等权个股口径；按族内最高涨幅标出档位，'
+               '<b>5&ndash;9%% 温和档是回测最优档</b>，已在第二部分单独列出）。'
+               '普涨日该信号会满屏飘红，仅供观察，<b>不改 Top5、不参与打分</b>。</div>' % len(bursts))
+    _band_tag = {'5to9': '<span class="tag gy">温和5-9%</span>',
+                 'over9': '<span class="tag w">过热&ge;9%</span>',
+                 'under5': '<span style="color:var(--muted)">弱&lt;5%</span>'}
     if bursts:
         tr = []
         for b in bursts[:20]:
@@ -583,10 +633,14 @@ def render_icepoint(ice):
                       '<td class="r mono">' + str(b.get('n_members')) + '</td>'
                       '<td class="r mono">' + ('%.0f%%' % (b.get('prev_up_share', 0) * 100)) + '</td>'
                       '<td class="r mono">' + ('%.0f%%' % (b.get('cur_up_share', 0) * 100)) + '</td>'
-                      '<td class="r mono ' + cls + '">' + txt + '</td></tr>')
+                      '<td class="r mono ' + cls + '">' + txt + '</td>'
+                      '<td class="r mono ' + pct_cls(b.get('max_pct')) + '">'
+                      + pct_txt(b.get('max_pct')) + '</td>'
+                      '<td>' + _band_tag.get(b.get('band'), '-') + '</td></tr>')
         out.append('<table><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
                    '<th class="r">前日占比</th><th class="r">当日占比</th>'
-                   '<th class="r">当日均涨</th></tr>' + ''.join(tr) + '</table>')
+                   '<th class="r">当日均涨</th><th class="r">族内最高</th>'
+                   '<th>档位</th></tr>' + ''.join(tr) + '</table>')
         if len(bursts) > 20:
             out.append('<div class="note">仅显示涨幅前 20 个，共 %d 个。</div>' % len(bursts))
     if core:
@@ -701,7 +755,7 @@ def render(data_dir, narrative_path, out_path):
     ice = (market.get('rotation') or {}).get('icepoint_scan') or load(ICEPOINT_SCAN_JSON)
     sfs = (market.get('rotation') or {}).get('subfamily_strength') or load(SUBFAMILY_STRENGTH_JSON)
     body = [render_head(td, market, gen), render_alert(narr), render_snap(market.get('env') or {}),
-            render_rotation(market.get('rotation') or {}),
+            render_rotation(market.get('rotation') or {}, ice or {}),
             render_universe_scan(uscan or {}),
             render_icepoint(ice or {}),
             '<h2>四、今日五个标的（按确定性排名）</h2>',
