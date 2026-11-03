@@ -256,10 +256,10 @@ def render_pick(r, i, narr):
         % (' g' if i == 1 else '', i, esc(r.get('name')), esc(r.get('code')),
            esc(r.get('seg') or '-'), pick_tags(r, nd.get('tags_extra')),
            fnum(r.get('close')), pct_cls(chg), pct_txt(chg)))
-    b1 = (bar('资金流', r.get('smf', 0), 25, True) + bar('基本面', r.get('sf', 0), 30, True)
-          + bar('5日动量', r.get('sm5', 0), 20, True) + bar('技术', r.get('st', 0), 15, True)
+    b1 = (bar('资金流', r.get('smf', 0), 30, True) + bar('基本面', r.get('sf', 0), 10, True)
+          + bar('5日动量', r.get('sm5', 0), 25, True) + bar('技术', r.get('st', 0), 20, True)
           + bar('市值适配', r.get('smv', 0), 10, True)
-          + bar('细分族强度', r.get('sf_boost') or 0, 10, True)
+          + bar('细分族强度', r.get('sf_boost') or 0, 15, True)
           + (bar('题材内相对强势', r.get('srs', 0), 30, True) if r.get('srs') else ''))
     b2 = (bar('技术总分', r.get('tech', 0), 30) + bar('结构健康', r.get('sh') or 0, 3)
           + bar('趋势结构', r.get('tsc') or 0, 8) + bar('量价', r.get('vp', 0), 6)
@@ -773,8 +773,8 @@ def render(data_dir, narrative_path, out_path):
             '<h2>四、今日五个标的（按确定性排名）</h2>',
             '<div class="sub" style="margin-bottom:12px">排名即优先级。'
             '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b>'
-            '评分框架（2026-11-04 起）：<b>资金流 25</b> + 基本面 30 + 5日动量 20 + 技术 15 + '
-            '<b>市值适配 10</b> + 细分族强度 10 = 110（不含流动性维度）。<br>'
+            '评分框架（2026-11-04 P2.1）：<b>资金流 30</b> + 基本面 10 + <b>5日动量 25</b> + '
+            '<b>技术 20</b> + 市值适配 10 + <b>细分族强度 15</b> = 110（不含流动性维度）。<br>'
             '<b>资金流</b> = 近 5 日主力（大单+特大单）净流入 ÷ 总市值，在候选集内取分位；'
             '<b>市值适配</b> = 总市值在候选集内的分位取倒数（小市值高分）；'
             '<b>位置60</b> = 近 60 日高低区间中的相对位置，<b>已退出计分、仅作展示</b>。</div>']
