@@ -392,7 +392,10 @@ def render_start59(ice, subs_all):
     """
     if not ice:
         return ''
-    today = ice.get('start_59') or []
+    today = ice.get('start_59')
+    if today is None:
+        # 兼容旧版 icepoint_scan（无 start_59 字段）：从 bursts 里按 band 现算
+        today = [b for b in (ice.get('bursts') or []) if b.get('band') == '5to9']
     fallback = [] if today else (ice.get('recent_59') or [])
     rows_src = today or fallback
     lsd = ice.get('last_start_date') or ''
