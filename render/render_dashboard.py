@@ -392,6 +392,48 @@ def sub_stage(sub):
     return '震荡'
 
 
+def render_events(ev):
+    """事件驱动题材备注（AI 生成，仅供展示，不进打分）。
+
+    数据来源：云端自动化每日用检索引擎生成的 data_dir/event_driven.json。
+    硬校验：theme + catalyst + source_url(http) 三者缺一即丢弃该条，防止幻觉条目上板。
+    """
+    items = []
+    for x in (ev.get('items') or []):
+        if not isinstance(x, dict):
+            continue
+        theme = (x.get('theme') or '').strip()
+        cat = (x.get('catalyst') or '').strip()
+        url = (x.get('source_url') or '').strip()
+        if not theme or not cat or not url.startswith('http'):
+            continue
+        items.append({**x, 'theme': theme, 'catalyst': cat, 'source_url': url})
+    if not items:
+        return ''
+    rows = []
+    for x in items[:6]:
+        conf = x.get('confidence')
+        conf_txt = ('%.0f%%' % (float(conf) * 100)) if isinstance(conf, (int, float)) else '-'
+        rows.append('<tr><td>' + esc(x['theme']) + '</td>'
+                    '<td>' + esc(x.get('direction') or '-') + '</td>'
+                    '<td>' + esc(x.get('type') or '事件') + '</td>'
+                    '<td>' + esc(x['catalyst']) + '</td>'
+                    '<td class="r mono">' + conf_txt + '</td>'
+                    '<td><a href="' + esc(x['source_url']) + '" target="_blank" rel="noopener">'
+                    + esc(x.get('source_title') or '信源') + '</a></td>'
+                    '<td>' + esc(x.get('falsify') or '-') + '</td></tr>')
+    out = ['<div class="sub" style="margin:14px 0 6px"><b>事件驱动备注（AI 检索生成，仅参考）</b>'
+           + str(len(items)) + ' 条</div>',
+           '<table><tr><th>题材</th><th>方向</th><th>类型</th><th>驱动逻辑</th>'
+           '<th class="r">置信度</th><th>信源</th><th>证伪条件</th></tr>'
+           + ''.join(rows) + '</table>',
+           '<div class="note"><b>怎么用：</b>这一块是每日生成看板时由 AI 检索公开信源补充的'
+           '<b>题材催化剂</b>，用来解释"为什么涨"，<b>不参与打分、不改变 Top5</b>。'
+           '每条都必须有可点开的信源；没有信源的题材不会被列出。'
+           '置信度是 AI 自评，仅供参考；证伪条件一旦出现即视为该逻辑失效。</div>']
+    return '\n'.join(out)
+
+
 def render_start59(ice, subs_all):
     """题材启动：5–9% 温和启动（§6.19 最优档），替代原「细分族最强10/最弱10」。
 
@@ -766,8 +808,10 @@ def render(data_dir, narrative_path, out_path):
              or load(UNIVERSE_SCAN_JSON))
     ice = (market.get('rotation') or {}).get('icepoint_scan') or load(ICEPOINT_SCAN_JSON)
     sfs = (market.get('rotation') or {}).get('subfamily_strength') or load(SUBFAMILY_STRENGTH_JSON)
+    ev = load(os.path.join(data_dir, 'event_driven.json'), {})
     body = [render_head(td, market, gen), render_alert(narr), render_snap(market.get('env') or {}),
             render_rotation(market.get('rotation') or {}, ice or {}),
+            render_events(ev or {}),
             render_universe_scan(uscan or {}),
             render_icepoint(ice or {}),
             '<h2>四、今日五个标的（按确定性排名）</h2>',
