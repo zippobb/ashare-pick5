@@ -307,13 +307,21 @@ def render_pick(r, i, narr):
                      pct_txt(r.get('sub_ret5')) if r.get('sub_ret5') is not None else '—'))
     else:
         crowd += '<div class="note">该股不在细分族体系内（未覆盖 36%），细分族项按中性 7.5 分计（15×0.5），不奖不罚</div>'
+    # 2026-11-05：表内顺序按「综合评分 + 题材热度加分」排，需把排序分一并显示，否则分数看起来乱序
+    _tot = r.get('total') or 0
+    _rot = r.get('srot') or 0
+    _trot = r.get('total_rot')
+    _sort_note = ''
+    if _trot is not None and _rot:
+        _sort_note = ('<span class="note" style="margin-left:8px">排序分 %s = 综合 %s + 题材热度 %s</span>'
+                      % (fnum(_trot, 1), fnum(_tot, 1), fnum(_rot, 1)))
     body = ('<div class="pick-bd"><div class="grid2"><div>'
-            '<h3>综合评分（五维 100 + 细分族 10） <b class="mono %st">%s</b></h3>'
+            '<h3>综合评分（五维 100 + 细分族 10） <b class="mono %st">%s</b>%s</h3>'
             '<div class="bars">%s</div>%s</div>'
             '<div><h3>六维技术评分（上游口径）</h3><div class="bars">%s</div></div></div>'
             '%s%s%s</div>'
-            % (rate_cls(min(100, 100.0 * (r.get('total') or 0) / 110.0)),
-               fnum(r.get('total'), 1), b1, crowd, b2, sec, op, fals))
+            % (rate_cls(min(100, 100.0 * _tot / 110.0)),
+               fnum(_tot, 1), _sort_note, b1, crowd, b2, sec, op, fals))
     return '<div class="pick">%s%s</div>\n' % (hd, body)
 
 
@@ -816,7 +824,10 @@ def render(data_dir, narrative_path, out_path):
             render_icepoint(ice or {}),
             '<h2>四、今日五个标的（按确定性排名）</h2>',
             '<div class="sub" style="margin-bottom:12px">排名即优先级。'
-            '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b>'
+            '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b><br>'
+            '<b>排序键 = 综合评分 + 题材热度加分</b>（热题材在池内凑不够 3 只时启用，满分 30，'
+            '按所选题材热度分位给分）。因此<b>综合评分高但题材偏冷的票会排到后面</b>，'
+            '两者不一致时以排序分为准。<br>'
             '评分框架（2026-11-04 P2.1）：<b>资金流 30</b> + 基本面 10 + <b>5日动量 25</b> + '
             '<b>技术 20</b> + 市值适配 10 + <b>细分族强度 15</b> = 110（不含流动性维度）。<br>'
             '<b>资金流</b> = 近 5 日主力（大单+特大单）净流入 ÷ 总市值，在候选集内取分位；'
