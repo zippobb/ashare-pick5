@@ -666,7 +666,7 @@ ROT = load_theme_rotation()
 #   故无归属一律给中性 0.5 分位（=5 分），不奖不罚。
 SUB_STRENGTH = load_json_opt(SUBFAMILY_STRENGTH_JSON)
 SUB_STOCK = (SUB_STRENGTH.get('stock_to_subfamily') or {}) if SUB_STRENGTH else {}
-SF_MAX = 10.0          # 细分族强度满分
+# SF_MAX 见下方 P2.1 权重块（2026-11-04 提到 15）
 SF_NEUTRAL = 0.5       # 无归属时的中性分位
 
 
@@ -676,7 +676,11 @@ SF_NEUTRAL = 0.5       # 无归属时的中性分位
 # 数据：ops/fetch_mf_daily.py 每日抓 tushare moneyflow（大单+特大单净额，万元），
 #       存 scanner/data/fund_flow_daily.csv（滚动 15 个交易日）。
 FUND_FLOW_CSV = '/opt/stock-automation/scanner/data/fund_flow_daily.csv'
-MF_MAX = 25.0        # 资金流满分
+MF_MAX = 30.0        # 资金流满分（2026-11-04 P2.1：25→30）
+FUN_MAX = 10.0       # 基本面满分（2026-11-04 P2.1：30→10，用户拍板）
+MOM_MAX = 25.0       # 5日动量满分（P2.1：20→25）
+TEC_MAX = 20.0       # 技术满分（P2.1：15→20）
+SF_MAX = 15.0        # 细分族满分（P2.1：10→15）
 MV_MAX = 10.0        # 市值适配满分（小市值优先，2026-11-04 P2）
 
 
@@ -1002,7 +1006,7 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         s_pos = 20.0 * (1.0 - POS_PCT.get(bare, 0.5))   # 仅展示，不计入总分
         mom5 = ((kl or {}).get(bare) or {}).get('mom5')
         pos60 = ((kl or {}).get(bare) or {}).get('pos60')
-        s_fun = roe_score(roe) * 30.0 / 25.0
+        s_fun = roe_score(roe) * FUN_MAX / 25.0      # 2026-11-04 P2.1：满分 30→10
         # ★ 2026-10-31：第三维由「逻辑纯度」替换为「5日动量分位」。
         # 原因：逻辑分在实盘 40 只候选里只有 3 种取值、85% 同值 5.3，
         #      且「题材==主业」自动补档使白酒/医疗/汽配白送 14.7 分，
@@ -1011,7 +1015,7 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         #      控制 pos60 后偏 IC 保真度 104%（信息独立），为现有技术面因子中相对最优。
         #      ⚠ 未通过「抽稀 t ≥ 2」门槛，属前向观察项。
         s_biz = BIZ_SCORE.get(biz, 4 if biz is None else 5) * 20.0 / 15.0   # 仅展示，不再计分
-        s_mom5 = 20.0 * MOM_PCT.get(bare, 0.5)                             # 第三维：5日动量分位
+        s_mom5 = MOM_MAX * MOM_PCT.get(bare, 0.5)                          # 第三维：5日动量分位（P2.1：20→25）
         # 资金流（25 分）：mf1 与 mf5 各半；缺 mf5 时退回 mf1；全缺 → 中性 0.5
         _p1 = MF1_PCT.get(bare)
         _p5 = MF5_PCT.get(bare)
@@ -1027,7 +1031,7 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         # 市值适配（10 分）：小市值高分（池内 log_mv IC 单调为负、4/4 分段同号）
         _mvp = MV_PCT.get(bare)
         s_mv = MV_MAX * (1.0 - (_mvp if _mvp is not None else 0.5))
-        s_tec = 15.0 * min(1.0, (c.get('technical_score') or TECH_FILL) / 30.0)
+        s_tec = TEC_MAX * min(1.0, (c.get('technical_score') or TECH_FILL) / 30.0)   # P2.1：15→20
         _r1, _r5 = mf_ratios(bare, mc)
         _mf1v = round(_r1, 3) if _r1 is not None else None
         _mf5v = round(_r5, 3) if _r5 is not None else None
@@ -1077,7 +1081,7 @@ def score(cands, tx, listing, fin, kf, min_amt=0, ovr=None, kl=None):
         if _sfd:
             sf_boost = round(SF_MAX * float(_sfd.get('sub_pct') or 0.0), 1)
         else:
-            sf_boost = round(SF_MAX * SF_NEUTRAL, 1)      # 无归属 → 中性 5 分
+            sf_boost = round(SF_MAX * SF_NEUTRAL, 1)      # 无归属 → 中性 7.5 分（15×0.5）
         total = s_mf + s_fun + s_mom5 + s_tec + s_mv + sf_boost - pen
 
         rows.append({
@@ -1255,7 +1259,15 @@ def push_results(cfg, trade_date, day_dir):
     repo = abspath(push.get('repo_dir', 'results_repo'))
     branch = push.get('branch', 'main')
     if os.path.isdir(os.path.join(repo, '.git')):
-        os.system("cd '%s' && git pull --quiet --ff-only" % repo)
+        # 2026-11-05 修复：原 `git pull --ff-only` 在本地有未推送提交时直接失败（Not possible to
+        # fast-forward），且返回值被忽略 → 11-04 / 11-05 两天数据都没推上去，看板停在旧日期。
+        # 改为 fetch + rebase；rebase 冲突时放弃本地未推送提交并对齐远端（当日数据此时尚未写入，不会丢）。
+        os.system("cd '%s' && git fetch --quiet origin" % repo)
+        r = os.system("cd '%s' && git rebase --quiet origin/%s >/dev/null 2>&1" % (repo, branch))
+        if r != 0:
+            os.system("cd '%s' && git rebase --abort >/dev/null 2>&1" % repo)
+            os.system("cd '%s' && git reset --quiet --hard origin/%s" % (repo, branch))
+            log('git rebase 失败，已对齐 origin/%s（丢弃本地未推送提交）' % branch)
     else:
         os.system("git clone --depth 1 -b %s '%s' '%s'" % (branch, url, repo))
 
@@ -1277,6 +1289,14 @@ def push_results(cfg, trade_date, day_dir):
     msg = 'pick5 %s' % trade_date
     rc = os.system("cd '%s' && git add -A && git commit -q -m '%s' && git push -q origin %s"
                    % (repo, msg, branch))
+    if rc != 0:
+        # 远端在本进程运行期间被推进（例如云端发布 index.html）→ 再对齐一次后重试
+        log('首次 push 失败，fetch+rebase 后重试一次')
+        os.system("cd '%s' && git fetch --quiet origin" % repo)
+        r = os.system("cd '%s' && git rebase --quiet origin/%s >/dev/null 2>&1" % (repo, branch))
+        if r != 0:
+            os.system("cd '%s' && git rebase --abort >/dev/null 2>&1" % repo)
+        rc = os.system("cd '%s' && git push -q origin %s" % (repo, branch))
     log('推送 GitHub %s' % ('成功' if rc == 0 else '失败 rc=%d' % rc))
     return rc == 0
 
