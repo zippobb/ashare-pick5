@@ -17,6 +17,12 @@ import argparse
 BASE = os.path.dirname(os.path.abspath(__file__))
 WEEK = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
+# 2026-11-07 用户裁决：池内腿 / 全市场腿 Top5 均先从看板隐藏。
+# 数据（picks.json / picks_market.json）照常产出，core 逻辑留待优化，仅关闭展示。
+# 恢复展示时把对应开关改回 True 即可，不需要改其它代码。
+SHOW_POOL_TOP5 = False
+SHOW_MARKET_TOP5 = False
+
 
 # ---------- 工具 ----------
 UNIVERSE_SCAN_JSON = '/opt/stock-automation/scanner/config/theme_universe_scan_latest.json'   # 全市场题材扫描（独立数据源，不进 Top5）
@@ -833,18 +839,25 @@ def render(data_dir, narrative_path, out_path):
             '<b>资金流</b> = 近 5 日主力（大单+特大单）净流入 ÷ 总市值，在候选集内取分位；'
             '<b>市值适配</b> = 总市值在候选集内的分位取倒数（小市值高分）；'
             '<b>位置60</b> = 近 60 日高低区间中的相对位置，<b>已退出计分、仅作展示</b>。</div>']
-    body.append(
-        '<div class="legend"><b>色条图例（按得分率着色，与涨跌的红/绿配色无关）：</b>'
-        '<span><i class="qd" style="background:#0f8a4a"></i>优 · ≥85%</span>'
-        '<span><i class="qd" style="background:#65a30d"></i>良 · 70–85%</span>'
-        '<span><i class="qd" style="background:#d97706"></i>中 · 50–70%</span>'
-        '<span><i class="qd" style="background:#9ca3af"></i>弱 · &lt;50%</span>'
-        '<span style="color:var(--muted)">条宽＝得分率，颜色＝强弱档位；粗条为四维，细条为六维技术分。</span></div>')
-    for i, r in enumerate(picks, 1):
-        body.append(render_pick(r, i, narr))
-    if narr.get('summary'):
-        body.append('<div class="note"><b>操作提示：</b>%s</div>' % narr['summary'])
-    body.append(render_market_picks(picks_market))
+    if not SHOW_POOL_TOP5:
+        # 列表末尾两项即「四、今日五个标的」标题与评分框架说明
+        assert body[-2].startswith('<h2>四、今日五个标的') and body[-1].startswith('<div class="sub"'), \
+            'body 结构变化，需同步更新隐藏逻辑'
+        del body[-2:]
+    if SHOW_POOL_TOP5:
+        body.append(
+            '<div class="legend"><b>色条图例（按得分率着色，与涨跌的红/绿配色无关）：</b>'
+            '<span><i class="qd" style="background:#0f8a4a"></i>优 · ≥85%</span>'
+            '<span><i class="qd" style="background:#65a30d"></i>良 · 70–85%</span>'
+            '<span><i class="qd" style="background:#d97706"></i>中 · 50–70%</span>'
+            '<span><i class="qd" style="background:#9ca3af"></i>弱 · &lt;50%</span>'
+            '<span style="color:var(--muted)">条宽＝得分率，颜色＝强弱档位；粗条为四维，细条为六维技术分。</span></div>')
+        for i, r in enumerate(picks, 1):
+            body.append(render_pick(r, i, narr))
+        if narr.get('summary'):
+            body.append('<div class="note"><b>操作提示：</b>%s</div>' % narr['summary'])
+    if SHOW_MARKET_TOP5:
+        body.append(render_market_picks(picks_market))
     body.append(render_dropped(dropped))
     body.append(render_foot(narr))
 
