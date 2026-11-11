@@ -765,6 +765,30 @@ def render_market_picks(picks_market):
 
 
 
+def render_khunter(kh):
+    """KHunter 7 策略选股（观察区块）。kh 来自 market.json 的 khunter 字段。"""
+    if not kh or not kh.get('rows'):
+        return ''
+    rows = kh.get('rows') or []
+    tr = ''.join(
+        '<tr><td class="mono">%s</td><td>%s</td><td>%s</td><td>%s</td>'
+        '<td class="r mono">%s</td><td class="r mono">%+.2f</td><td class="r mono">%s</td></tr>'
+        % (esc(r.get('code')), esc(r.get('name')), esc(r.get('status')),
+           esc(r.get('strategy')), esc(r.get('close')),
+           float(r.get('chg') or 0), esc(r.get('mv'))) for r in rows)
+    dd = kh.get('dedup') or {}
+    note = ('<div class="note">7 个未放弃策略（保留 2 / 观察 3 / 优化 2），'
+            '排除 2560战法、仙人指路、多方炮、金三角、龙头。'
+            '<b>多金叉共振仅首次命中展示</b>：同一票若上一交易日已命中则今日不展示'
+            '（本日隐藏 %s 条）。仅作形态观察，<b>不进 Top5、不参与打分、不构成推荐</b>；'
+            '已剔 ST/*ST、退市、北交所、当日停牌、上市不足 60 根 K 线。</div>'
+            % esc(dd.get('hidden', 0)))
+    return ('<h2>KHunter 策略选股（观察，%d 只）</h2>' % len(rows) + note +
+            '<table><tr><th>代码</th><th>名称</th><th>裁决</th><th>策略</th>'
+            '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th></tr>'
+            '%s</table>' % tr)
+
+
 def render_dropped(dropped):
     if not dropped:
         return ('<h2>六、本期剔除</h2><div class="note">本期无标的被剔除。'
@@ -858,6 +882,7 @@ def render(data_dir, narrative_path, out_path):
             body.append('<div class="note"><b>操作提示：</b>%s</div>' % narr['summary'])
     if SHOW_MARKET_TOP5:
         body.append(render_market_picks(picks_market))
+    body.append(render_khunter(market.get('khunter')))
     body.append(render_dropped(dropped))
     body.append(render_foot(narr))
 

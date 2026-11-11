@@ -1508,6 +1508,14 @@ def main():
     mkt_scan = load_market_scan()
     picks_market = (mkt_scan.get('top5') or [])
     scored_market = (mkt_scan.get('rows') or [])
+    # KHunter 7 策略选股（systemd ExecStartPre 每日生成；缺失时安全降级，不影响主流程）
+    try:
+        import json as _json_kh
+        _kh = _json_kh.load(open('/opt/bt/khunter_daily_latest.json', encoding='utf-8'))
+        if _kh.get('trade_date') == want:
+            market['khunter'] = _kh
+    except Exception:
+        pass
     market['legs'] = {
         'pool': {'candidate_mode': _cand_mode, 'n_scored': len(rows),
                  'top5': picks, 'top5_out_pool': sum(1 for r in picks if r.get('in_pool') is False)},
