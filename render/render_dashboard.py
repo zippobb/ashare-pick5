@@ -770,6 +770,10 @@ def render_khunter(kh):
     if not kh or not kh.get('rows'):
         return ''
     rows = kh.get('rows') or []
+    _KH_STRATEGY_ORDER = {s: i for i, s in enumerate((
+        '主升低吸策略', '多金叉共振', '次新腰斩策略', '涨停回马枪策略',
+        '阻力位突破策略', '启明星策略', '超跌反弹'))}
+    rows = sorted(rows, key=lambda r: _KH_STRATEGY_ORDER.get(r.get('strategy'), 99))
     tr = []
     for r in rows:
         theme = r.get('theme') or '—'
@@ -789,7 +793,8 @@ def render_khunter(kh):
             '（本日隐藏 %s 条）。仅作形态观察，<b>不进 Top5、不参与打分、不构成推荐</b>；'
             '已剔 ST/*ST、退市、北交所、当日停牌、上市不足 60 根 K 线。'
             '<b>题材列</b>＝个股主题材，优先人工复核 / 东财概念，缺失时用细分族、'
-            '行业兜底（标「（行业）」）；悬停可看来源，仅展示不参与筛选。</div>'
+            '行业兜底（标「（行业）」）；悬停可看来源，仅展示不参与筛选。'
+            '<b>排序</b>：按策略固定顺序（保留→观察→优化）分组，组内保持原始顺序。</div>'
             % esc(dd.get('hidden', 0)))
     return ('<h2>KHunter 策略选股（观察，%d 只）</h2>' % len(rows) + note +
             '<table><tr><th>代码</th><th>名称</th><th>题材</th><th>策略</th>'
