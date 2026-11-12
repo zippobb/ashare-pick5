@@ -1516,6 +1516,14 @@ def main():
             market['khunter'] = _kh
     except Exception:
         pass
+    # 新版超跌反弹 v2（主要展示策略；systemd ExecStartPre 每日生成，缺失安全降级）
+    try:
+        import json as _json_ov
+        _ov = _json_ov.load(open('/opt/bt/oversold_v2_latest.json', encoding='utf-8'))
+        if _ov.get('trade_date') == want:
+            market['oversold_v2'] = _ov
+    except Exception:
+        pass
     market['legs'] = {
         'pool': {'candidate_mode': _cand_mode, 'n_scored': len(rows),
                  'top5': picks, 'top5_out_pool': sum(1 for r in picks if r.get('in_pool') is False)},

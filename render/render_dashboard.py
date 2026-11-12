@@ -829,6 +829,45 @@ def render_liquidity(rows):
             '<th class="r">换手%%</th><th class="r">市值亿</th></tr>%s</table>' % tr)
 
 
+def render_oversold_v2(ov):
+    """新版超跌反弹 v2（看板最下方主要展示策略）。ov 来自 market.json 的 oversold_v2 字段。"""
+    if not ov or not ov.get('rows'):
+        return ''
+    rows = ov.get('rows') or []
+    tr = []
+    for r in rows:
+        theme = r.get('theme') or '—'
+        src = r.get('theme_src') or '无'
+        label = theme + '（行业）' if src in ('行业兜底', '生效行业') else theme
+        td = '<td title="题材来源：%s">%s</td>' % (esc(src), esc(label))
+        tr.append('<tr><td class="mono">%s</td><td>%s</td>%s'
+                  '<td class="r mono">%s</td><td class="r mono">%+.2f</td>'
+                  '<td class="r mono">%s</td><td class="r mono">%s</td>'
+                  '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
+                  % (esc(r.get('code')), esc(r.get('name')), td,
+                     esc(r.get('close')), float(r.get('chg') or 0), esc(r.get('mv')),
+                     esc(r.get('amp20')), esc(r.get('vol20')), esc(r.get('amt_pct'))))
+    note = ('<div class="note"><b>规则</b>（全部只用 T 日及之前数据，无前视）：'
+            '① <b>C1 腰斩</b>＝收盘价 ≤ 近 120 日最高价 × 50%；'
+            '② <b>C3 反弹上限</b>＝较近 100 日最低价反弹 ≤ 30%；'
+            '③ <b>KDJ 存在型底背离</b>＝近 5 日内出现过「当日最低价创新低、但 J 值高于此前的某一个低点日」'
+            '（J＝3K−2D，K/D 为 KDJ(9,3,3) 的 1/3 指数平滑）；'
+            '④ <b>三重 gate</b>＝在当日全部 B 信号票内，'
+            '<b>AMP20</b>（过去 20 日平均振幅，即 (最高−最低)/昨收 的 20 日均值）、'
+            '<b>VOL20</b>（过去 20 日日收益率的标准差）、'
+            '<b>当日成交额分位</b>（当日成交额在全市场横截面的百分位，数值越小越冷门）'
+            '三项各取最低的 50%，取交集。<br>'
+            '表格按成交额分位升序；已剔 ST/*ST、退市、北交所、当日停牌、上市不足 120 根 K 线。'
+            '本策略已通过项目完整七关检验（用户口径：交易成本不计入），作为看板主要展示策略；'
+            '<b>不进 Top5、不参与打分、不构成推荐</b>。</div>')
+    return ('<h2>新版超跌反弹 v2（主要展示策略，%d 只 · %s）</h2>'
+            % (len(rows), esc(ov.get('trade_date') or '')) + note +
+            '<table><tr><th>代码</th><th>名称</th><th>题材</th>'
+            '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th>'
+            '<th class="r">AMP20</th><th class="r">VOL20</th><th class="r">额分位</th></tr>'
+            '%s</table>' % ''.join(tr))
+
+
 def render_foot(narr):
     return ('<div class="disc">%s<br><br>本页由数据管线自动生成，'
             '仅供本人交易参考，不构成投资建议。评分框架：位置60 20 + 基本面 30 + 5日动量 20 + 技术 30'
@@ -897,6 +936,7 @@ def render(data_dir, narrative_path, out_path):
         body.append(render_market_picks(picks_market))
     body.append(render_khunter(market.get('khunter')))
     body.append(render_dropped(dropped))
+    body.append(render_oversold_v2(market.get('oversold_v2')))
     body.append(render_foot(narr))
 
     doc = ('<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n'
