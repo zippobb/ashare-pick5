@@ -1,0 +1,22 @@
+[
+ {
+  "code": "601636.SH",
+  "name": "旗滨集团",
+  "pos60": 20.25,
+  "pos20": 74.42,
+  "rsi_jump": 20.5,
+  "rsi6": 59.2,
+  "vr": 2.52,
+  "pct_chg": 2.86,
+  "close": 5.04,
+  "ma5_up": true,
+  "red": true,
+  "streak": 1,
+  "r250": -29.1,
+  "rot_theme": "玻璃制造",
+  "rot_cluster": "玻璃制造",
+  "industry": "玻璃制造",
+  "board": "主板",
+  "source": "market_scan"
+ }
+]
