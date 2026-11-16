@@ -1,0 +1,1642 @@
+{
+ "000338": {
+  "name": "潍柴动力",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "潍柴动力",
+   "close": 18.48,
+   "prev_close": 18.75,
+   "open": 18.75,
+   "amount_yi": 19.936,
+   "time": "20261116161445",
+   "chg_pct": -1.44,
+   "high": 19.0,
+   "low": 18.3,
+   "turnover_pct": 2.16,
+   "pe_tx": "12.56",
+   "amplitude": "3.73",
+   "floatcap_yi": 915.94,
+   "totalcap_yi": 1596.71,
+   "pb": "1.70",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2007-04-30",
+   "industry": "交运设备-汽车-汽车零部件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 1811.71,
+   "netprofit_yi": 106.59,
+   "roe": 11.39,
+   "eps": 1.24,
+   "gross_margin": 21.9188872714
+  },
+  "kf": {
+   "kf_yi": 93.3859,
+   "kf_yoy": 17.100694077423,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "000636": {
+  "name": "风华高科",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "风华高科",
+   "close": 27.94,
+   "prev_close": 30.36,
+   "open": 30.04,
+   "amount_yi": 16.618,
+   "time": "20261116161445",
+   "chg_pct": -7.97,
+   "high": 30.04,
+   "low": 27.73,
+   "turnover_pct": 5.05,
+   "pe_tx": "46.02",
+   "amplitude": "7.61",
+   "floatcap_yi": 320.61,
+   "totalcap_yi": 320.61,
+   "pb": "2.50",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "1996-11-29",
+   "industry": "电子设备-电子元件-电子元件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 57.99,
+   "netprofit_yi": 6.42,
+   "roe": 5.05,
+   "eps": 0.56,
+   "gross_margin": 22.7994331938
+  },
+  "kf": {
+   "kf_yi": 6.3647,
+   "kf_yoy": 174.137203617697,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "000703": {
+  "name": "恒逸石化",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "恒逸石化",
+   "close": 11.64,
+   "prev_close": 11.75,
+   "open": 11.66,
+   "amount_yi": 3.956,
+   "time": "20261116161500",
+   "chg_pct": -0.94,
+   "high": 11.78,
+   "low": 11.37,
+   "turnover_pct": 0.83,
+   "pe_tx": "5.95",
+   "amplitude": "3.49",
+   "floatcap_yi": 476.18,
+   "totalcap_yi": 478.59,
+   "pb": "1.43",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "1997-03-28",
+   "industry": "基础化工-合成纤维及树脂-涤纶"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 1083.06,
+   "netprofit_yi": 80.11,
+   "roe": 27.66,
+   "eps": 2.33,
+   "gross_margin": 12.883646954
+  },
+  "kf": {
+   "kf_yi": 79.4116,
+   "kf_yoy": 9977.90737937551,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "000711": {
+  "name": "京蓝科技",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "京蓝科技",
+   "close": 3.17,
+   "prev_close": 3.3,
+   "open": 3.3,
+   "amount_yi": 2.895,
+   "time": "20261116161430",
+   "chg_pct": -3.94,
+   "high": 3.41,
+   "low": 3.15,
+   "turnover_pct": 3.78,
+   "pe_tx": "-2536.37",
+   "amplitude": "7.88",
+   "floatcap_yi": 74.72,
+   "totalcap_yi": 93.63,
+   "pb": "10.29",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "1997-04-11",
+   "industry": "公用事业-环保-环保"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 7.73,
+   "netprofit_yi": 1.02,
+   "roe": 15.54,
+   "eps": 0.0348,
+   "gross_margin": 18.866647073
+  },
+  "kf": {
+   "kf_yi": 0.3275,
+   "kf_yoy": 132.077409723537,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "000811": {
+  "name": "冰轮环境",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "冰轮环境",
+   "close": 20.66,
+   "prev_close": 22.49,
+   "open": 21.97,
+   "amount_yi": 10.7,
+   "time": "20261116161436",
+   "chg_pct": -8.14,
+   "high": 22.3,
+   "low": 20.51,
+   "turnover_pct": 5.13,
+   "pe_tx": "27.15",
+   "amplitude": "7.96",
+   "floatcap_yi": 203.54,
+   "totalcap_yi": 205.05,
+   "pb": "2.99",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "1998-05-28",
+   "industry": "机械设备-通用设备-制冷空调设备"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 60.14,
+   "netprofit_yi": 6.19,
+   "roe": 9.35,
+   "eps": 0.62,
+   "gross_margin": 27.3296789185
+  },
+  "kf": {
+   "kf_yi": 5.7102,
+   "kf_yoy": 45.2165790423,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "000962": {
+  "name": "东方钽业",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "东方钽业",
+   "close": 33.66,
+   "prev_close": 37.4,
+   "open": 36.82,
+   "amount_yi": 7.954,
+   "time": "20261116161500",
+   "chg_pct": -10.0,
+   "high": 36.86,
+   "low": 33.66,
+   "turnover_pct": 4.48,
+   "pe_tx": "59.03",
+   "amplitude": "8.56",
+   "floatcap_yi": 173.19,
+   "totalcap_yi": 177.52,
+   "pb": "4.27",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2000-01-20",
+   "industry": "有色金属-稀有金属-其他稀有小金属"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 19.21,
+   "netprofit_yi": 2.51,
+   "roe": 7.29,
+   "eps": 0.4852,
+   "gross_margin": 19.4195215377
+  },
+  "kf": {
+   "kf_yi": 2.4353,
+   "kf_yoy": 24.846875885752,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "001309": {
+  "name": "德明利",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "德明利",
+   "close": 178.65,
+   "prev_close": 193.86,
+   "open": 190.09,
+   "amount_yi": 27.171,
+   "time": "20261116161421",
+   "chg_pct": -7.85,
+   "high": 191.4,
+   "low": 176.72,
+   "turnover_pct": 6.38,
+   "pe_tx": "6.00",
+   "amplitude": "7.57",
+   "floatcap_yi": 415.21,
+   "totalcap_yi": 567.36,
+   "pb": "4.72",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2022-07-01",
+   "industry": "电子设备-半导体-集成电路"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 285.55,
+   "netprofit_yi": 87.46,
+   "roe": 112.09,
+   "eps": 27.77,
+   "gross_margin": 41.3203406398
+  },
+  "kf": {
+   "kf_yi": 86.9151,
+   "kf_yoy": 17317.1932920429,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002046": {
+  "name": "国机精工",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "国机精工",
+   "close": 37.04,
+   "prev_close": 41.16,
+   "open": 39.84,
+   "amount_yi": 5.459,
+   "time": "20261116161500",
+   "chg_pct": -10.01,
+   "high": 39.93,
+   "low": 37.04,
+   "turnover_pct": 2.7,
+   "pe_tx": "143.48",
+   "amplitude": "7.02",
+   "floatcap_yi": 198.51,
+   "totalcap_yi": 198.61,
+   "pb": "4.55",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2005-05-26",
+   "industry": "机械设备-通用设备-基础件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 24.12,
+   "netprofit_yi": 0.84,
+   "roe": 1.92,
+   "eps": 0.1573,
+   "gross_margin": 34.6571866423
+  },
+  "kf": {
+   "kf_yi": 0.716,
+   "kf_yoy": -54.477028247841,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002080": {
+  "name": "中材科技",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "中材科技",
+   "close": 30.03,
+   "prev_close": 32.18,
+   "open": 31.7,
+   "amount_yi": 13.937,
+   "time": "20261116161500",
+   "chg_pct": -6.68,
+   "high": 32.17,
+   "low": 29.72,
+   "turnover_pct": 2.7,
+   "pe_tx": "23.58",
+   "amplitude": "7.61",
+   "floatcap_yi": 503.94,
+   "totalcap_yi": 530.12,
+   "pb": "1.76",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2006-11-20",
+   "industry": "基础化工-合成纤维及树脂-玻纤"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 256.68,
+   "netprofit_yi": 19.1,
+   "roe": 9.29,
+   "eps": 1.1381,
+   "gross_margin": 21.6974141264
+  },
+  "kf": {
+   "kf_yi": 17.269,
+   "kf_yoy": 44.23721069627,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002202": {
+  "name": "金风科技",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "金风科技",
+   "close": 13.72,
+   "prev_close": 14.31,
+   "open": 14.26,
+   "amount_yi": 8.876,
+   "time": "20261116161500",
+   "chg_pct": -4.12,
+   "high": 14.29,
+   "low": 13.58,
+   "turnover_pct": 1.91,
+   "pe_tx": "18.90",
+   "amplitude": "4.96",
+   "floatcap_yi": 461.68,
+   "totalcap_yi": 579.33,
+   "pb": "1.44",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2007-12-26",
+   "industry": "电气设备-电源设备-风能"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 520.23,
+   "netprofit_yi": 28.75,
+   "roe": 6.94,
+   "eps": 0.6594,
+   "gross_margin": 15.9548893145
+  },
+  "kf": {
+   "kf_yi": 29.8398,
+   "kf_yoy": 23.341448625976,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002297": {
+  "name": "博云新材",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "博云新材",
+   "close": 13.47,
+   "prev_close": 14.33,
+   "open": 14.35,
+   "amount_yi": 4.024,
+   "time": "20261116161433",
+   "chg_pct": -6.0,
+   "high": 14.46,
+   "low": 13.32,
+   "turnover_pct": 5.11,
+   "pe_tx": "44.44",
+   "amplitude": "7.96",
+   "floatcap_yi": 77.2,
+   "totalcap_yi": 77.2,
+   "pb": "3.40",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2009-09-29",
+   "industry": "机械设备-金属制品-金属制品"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 9.95,
+   "netprofit_yi": 1.42,
+   "roe": 6.45,
+   "eps": 0.2476,
+   "gross_margin": 38.4239086382
+  },
+  "kf": {
+   "kf_yi": 1.301,
+   "kf_yoy": 830.004937955343,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002407": {
+  "name": "多氟多",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "多氟多",
+   "close": 21.23,
+   "prev_close": 22.08,
+   "open": 21.93,
+   "amount_yi": 7.857,
+   "time": "20261116161430",
+   "chg_pct": -3.85,
+   "high": 21.99,
+   "low": 21.11,
+   "turnover_pct": 3.38,
+   "pe_tx": "34.77",
+   "amplitude": "3.99",
+   "floatcap_yi": 229.48,
+   "totalcap_yi": 252.73,
+   "pb": "2.88",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2010-05-18",
+   "industry": "基础化工-化学新材料-化学新材料"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 109.27,
+   "netprofit_yi": 5.92,
+   "roe": 6.89,
+   "eps": 0.4975,
+   "gross_margin": 18.5739802846
+  },
+  "kf": {
+   "kf_yi": 5.5966,
+   "kf_yoy": 2498.71558993333,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002436": {
+  "name": "兴森科技",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "兴森科技",
+   "close": 24.31,
+   "prev_close": 27.0,
+   "open": 26.85,
+   "amount_yi": 27.842,
+   "time": "20261116161445",
+   "chg_pct": -9.96,
+   "high": 26.86,
+   "low": 24.3,
+   "turnover_pct": 7.28,
+   "pe_tx": "93.43",
+   "amplitude": "9.48",
+   "floatcap_yi": 369.01,
+   "totalcap_yi": 413.19,
+   "pb": "7.40",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2010-06-18",
+   "industry": "电子设备-电子元件-电子元件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 67.7,
+   "netprofit_yi": 4.39,
+   "roe": 7.78,
+   "eps": 0.26,
+   "gross_margin": 24.8142001653
+  },
+  "kf": {
+   "kf_yi": 4.5706,
+   "kf_yoy": 207.348123882258,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002466": {
+  "name": "天齐锂业",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "天齐锂业",
+   "close": 33.53,
+   "prev_close": 34.6,
+   "open": 34.23,
+   "amount_yi": 8.998,
+   "time": "20261116161457",
+   "chg_pct": -3.09,
+   "high": 34.25,
+   "low": 33.39,
+   "turnover_pct": 1.81,
+   "pe_tx": "9.76",
+   "amplitude": "2.49",
+   "floatcap_yi": 494.86,
+   "totalcap_yi": 574.4,
+   "pb": "1.17",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2010-08-31",
+   "industry": "有色金属-稀有金属-锂"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 182.79,
+   "netprofit_yi": 56.02,
+   "roe": 12.02,
+   "eps": 3.3,
+   "gross_margin": 63.9977248388
+  },
+  "kf": {
+   "kf_yi": 55.3334,
+   "kf_yoy": 7663.28579238125,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002515": {
+  "name": "金字火腿",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "金字火腿",
+   "close": 5.14,
+   "prev_close": 5.43,
+   "open": 5.38,
+   "amount_yi": 1.971,
+   "time": "20261116161445",
+   "chg_pct": -5.34,
+   "high": 5.44,
+   "low": 5.1,
+   "turnover_pct": 3.41,
+   "pe_tx": "-231.24",
+   "amplitude": "6.26",
+   "floatcap_yi": 56.64,
+   "totalcap_yi": 62.23,
+   "pb": "2.41",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2010-12-03",
+   "industry": "食品饮料-食品-肉制品"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 2.08,
+   "netprofit_yi": -0.3,
+   "roe": -1.16,
+   "eps": -0.025,
+   "gross_margin": 22.7401010345
+  },
+  "kf": {
+   "kf_yi": -0.2488,
+   "kf_yoy": -215.509062996146,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002545": {
+  "name": "东方铁塔",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "东方铁塔",
+   "close": 10.96,
+   "prev_close": 11.06,
+   "open": 10.98,
+   "amount_yi": 1.867,
+   "time": "20261116161415",
+   "chg_pct": -0.9,
+   "high": 11.05,
+   "low": 10.85,
+   "turnover_pct": 1.51,
+   "pe_tx": "8.66",
+   "amplitude": "1.81",
+   "floatcap_yi": 123.87,
+   "totalcap_yi": 136.35,
+   "pb": "1.31",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2011-02-11",
+   "industry": "基础化工-化肥农药-钾肥"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 40.36,
+   "netprofit_yi": 11.96,
+   "roe": 11.73,
+   "eps": 0.9617,
+   "gross_margin": 45.5780843926
+  },
+  "kf": {
+   "kf_yi": 11.7982,
+   "kf_yoy": 45.554695775755,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002734": {
+  "name": "利民股份",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "利民股份",
+   "close": 10.14,
+   "prev_close": 10.82,
+   "open": 10.69,
+   "amount_yi": 1.988,
+   "time": "20261116161445",
+   "chg_pct": -6.28,
+   "high": 10.7,
+   "low": 10.07,
+   "turnover_pct": 4.45,
+   "pe_tx": "15.63",
+   "amplitude": "5.82",
+   "floatcap_yi": 43.76,
+   "totalcap_yi": 47.82,
+   "pb": "1.21",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2015-01-27",
+   "industry": "基础化工-化肥农药-农药"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 32.59,
+   "netprofit_yi": 2.16,
+   "roe": 5.46,
+   "eps": 0.46,
+   "gross_margin": 23.9442217869
+  },
+  "kf": {
+   "kf_yi": 2.2567,
+   "kf_yoy": -40.108013080268,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002792": {
+  "name": "通宇通讯",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "通宇通讯",
+   "close": 23.41,
+   "prev_close": 25.99,
+   "open": 26.0,
+   "amount_yi": 5.97,
+   "time": "20261116161445",
+   "chg_pct": -9.93,
+   "high": 26.25,
+   "low": 23.39,
+   "turnover_pct": 7.22,
+   "pe_tx": "-10643.09",
+   "amplitude": "11.00",
+   "floatcap_yi": 79.55,
+   "totalcap_yi": 122.82,
+   "pb": "4.35",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2016-03-28",
+   "industry": "信息技术-通信设备-通信传输设备"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 8.87,
+   "netprofit_yi": -0.17,
+   "roe": -0.15,
+   "eps": -0.0324,
+   "gross_margin": 16.8843049102
+  },
+  "kf": {
+   "kf_yi": -0.7334,
+   "kf_yoy": -4695.06492975158,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002824": {
+  "name": "和胜股份",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "和胜股份",
+   "close": 16.66,
+   "prev_close": 17.6,
+   "open": 17.57,
+   "amount_yi": 1.622,
+   "time": "20261116161445",
+   "chg_pct": -5.34,
+   "high": 17.57,
+   "low": 16.6,
+   "turnover_pct": 4.22,
+   "pe_tx": "29.07",
+   "amplitude": "5.51",
+   "floatcap_yi": 37.68,
+   "totalcap_yi": 51.87,
+   "pb": "2.17",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2017-01-12",
+   "industry": "交运设备-汽车-汽车零部件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 37.62,
+   "netprofit_yi": 1.24,
+   "roe": 5.15,
+   "eps": 0.4,
+   "gross_margin": 13.8293838035
+  },
+  "kf": {
+   "kf_yi": 1.1595,
+   "kf_yoy": 26.92924058502,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002851": {
+  "name": "麦格米特",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "麦格米特",
+   "close": 64.62,
+   "prev_close": 71.8,
+   "open": 70.0,
+   "amount_yi": 21.655,
+   "time": "20261116161439",
+   "chg_pct": -10.0,
+   "high": 70.9,
+   "low": 64.62,
+   "turnover_pct": 6.64,
+   "pe_tx": "95.70",
+   "amplitude": "8.75",
+   "floatcap_yi": 317.89,
+   "totalcap_yi": 378.2,
+   "pb": "4.28",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2017-03-06",
+   "industry": "电气设备-其他电气设备-其他电气设备"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 90.36,
+   "netprofit_yi": 4.62,
+   "roe": 5.28,
+   "eps": 0.8006,
+   "gross_margin": 20.8167238875
+  },
+  "kf": {
+   "kf_yi": 1.0431,
+   "kf_yoy": -10.564565143565,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "002980": {
+  "name": "华盛昌",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "华盛昌",
+   "close": 60.91,
+   "prev_close": 67.33,
+   "open": 66.59,
+   "amount_yi": 6.184,
+   "time": "20261116161427",
+   "chg_pct": -9.54,
+   "high": 66.64,
+   "low": 60.6,
+   "turnover_pct": 9.67,
+   "pe_tx": "44.21",
+   "amplitude": "8.97",
+   "floatcap_yi": 61.69,
+   "totalcap_yi": 114.76,
+   "pb": "8.52",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2020-04-15",
+   "industry": "机械设备-通用设备-仪器仪表"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 9.98,
+   "netprofit_yi": 2.35,
+   "roe": 19.05,
+   "eps": 1.31,
+   "gross_margin": 48.4611726458
+  },
+  "kf": {
+   "kf_yi": 2.2858,
+   "kf_yoy": 268.620569147031,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "003018": {
+  "name": "金富科技",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "金富科技",
+   "close": 27.69,
+   "prev_close": 29.95,
+   "open": 29.66,
+   "amount_yi": 2.179,
+   "time": "20261116161436",
+   "chg_pct": -7.55,
+   "high": 29.66,
+   "low": 27.35,
+   "turnover_pct": 2.7,
+   "pe_tx": "45.94",
+   "amplitude": "7.71",
+   "floatcap_yi": 78.78,
+   "totalcap_yi": 89.29,
+   "pb": "4.37",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2020-11-06",
+   "industry": "轻工制造-造纸印刷-包装印刷"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 14.23,
+   "netprofit_yi": 1.87,
+   "roe": 11.18,
+   "eps": 0.6,
+   "gross_margin": 39.1112473466
+  },
+  "kf": {
+   "kf_yi": 1.8862,
+   "kf_yoy": 113.489183922065,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "300179": {
+  "name": "四方达",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "四方达",
+   "close": 22.92,
+   "prev_close": 25.11,
+   "open": 24.66,
+   "amount_yi": 5.207,
+   "time": "20261116161418",
+   "chg_pct": -8.72,
+   "high": 24.85,
+   "low": 22.8,
+   "turnover_pct": 5.87,
+   "pe_tx": "91.06",
+   "amplitude": "8.16",
+   "floatcap_yi": 86.1,
+   "totalcap_yi": 111.33,
+   "pb": "9.51",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2011-02-15",
+   "industry": "有色金属-金属非金属新材料-非金属新材料"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 5.53,
+   "netprofit_yi": 0.89,
+   "roe": 6.97,
+   "eps": 0.1825,
+   "gross_margin": 45.9606821423
+  },
+  "kf": {
+   "kf_yi": 0.7697,
+   "kf_yoy": 93.843659715936,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "300191": {
+  "name": "潜能恒信",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "潜能恒信",
+   "close": 21.5,
+   "prev_close": 22.41,
+   "open": 22.2,
+   "amount_yi": 1.232,
+   "time": "20261116161448",
+   "chg_pct": -4.06,
+   "high": 22.25,
+   "low": 21.38,
+   "turnover_pct": 2.58,
+   "pe_tx": "56.28",
+   "amplitude": "3.88",
+   "floatcap_yi": 47.56,
+   "totalcap_yi": 68.8,
+   "pb": "5.86",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2011-03-16",
+   "industry": "化石能源-石油天然气-石油天然气开采"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 10.15,
+   "netprofit_yi": 0.61,
+   "roe": 5.27,
+   "eps": 0.1893,
+   "gross_margin": 55.2902138225
+  },
+  "kf": {
+   "kf_yi": 0.6087,
+   "kf_yoy": 436.767652241491,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "300209": {
+  "name": "行云科技",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "行云科技",
+   "close": 20.0,
+   "prev_close": 21.99,
+   "open": 21.32,
+   "amount_yi": 10.976,
+   "time": "20261116161445",
+   "chg_pct": -9.05,
+   "high": 21.34,
+   "low": 19.81,
+   "turnover_pct": 7.16,
+   "pe_tx": "71.91",
+   "amplitude": "6.96",
+   "floatcap_yi": 148.58,
+   "totalcap_yi": 185.73,
+   "pb": "15.00",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2011-04-26",
+   "industry": "互联网-互联网商务-电子商务B2B"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 11.75,
+   "netprofit_yi": 2.69,
+   "roe": 25.56,
+   "eps": 0.2898,
+   "gross_margin": 45.0423646751
+  },
+  "kf": {
+   "kf_yi": 2.7066,
+   "kf_yoy": 445.950791539147,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "300308": {
+  "name": "中际旭创",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "中际旭创",
+   "close": 408.97,
+   "prev_close": 466.2,
+   "open": 450.0,
+   "amount_yi": 235.394,
+   "time": "20261116161439",
+   "chg_pct": -12.28,
+   "high": 455.0,
+   "low": 406.0,
+   "turnover_pct": 4.98,
+   "pe_tx": "18.60",
+   "amplitude": "10.51",
+   "floatcap_yi": 4539.31,
+   "totalcap_yi": 4817.3,
+   "pb": "5.11",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2012-04-10",
+   "industry": "信息技术-通信设备-通信传输设备"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 695.47,
+   "netprofit_yi": 222.38,
+   "roe": 44.26,
+   "eps": 19.78,
+   "gross_margin": 46.3947247726
+  },
+  "kf": {
+   "kf_yi": 221.0967,
+   "kf_yoy": 212.120376982039,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "300373": {
+  "name": "扬杰科技",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "扬杰科技",
+   "close": 66.73,
+   "prev_close": 71.76,
+   "open": 70.8,
+   "amount_yi": 8.172,
+   "time": "20261116161445",
+   "chg_pct": -7.01,
+   "high": 70.99,
+   "low": 66.31,
+   "turnover_pct": 2.22,
+   "pe_tx": "23.88",
+   "amplitude": "6.52",
+   "floatcap_yi": 361.77,
+   "totalcap_yi": 362.58,
+   "pb": "3.46",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2014-01-23",
+   "industry": "电子设备-半导体-半导体分立器件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 71.83,
+   "netprofit_yi": 12.33,
+   "roe": 12.15,
+   "eps": 2.28,
+   "gross_margin": 36.3588858152
+  },
+  "kf": {
+   "kf_yi": 12.4002,
+   "kf_yoy": 37.934915785037,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "300394": {
+  "name": "天孚通信",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "天孚通信",
+   "close": 110.2,
+   "prev_close": 124.99,
+   "open": 122.0,
+   "amount_yi": 66.921,
+   "time": "20261116161415",
+   "chg_pct": -11.83,
+   "high": 122.5,
+   "low": 109.66,
+   "turnover_pct": 5.33,
+   "pe_tx": "45.61",
+   "amplitude": "10.27",
+   "floatcap_yi": 1199.4,
+   "totalcap_yi": 1202.09,
+   "pb": "18.27",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2015-02-17",
+   "industry": "电子设备-光电子器件-光学元件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 47.51,
+   "netprofit_yi": 20.83,
+   "roe": 32.51,
+   "eps": 1.9119,
+   "gross_margin": 62.5614236312
+  },
+  "kf": {
+   "kf_yi": 20.6483,
+   "kf_yoy": 44.255775812841,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "300757": {
+  "name": "罗博特科",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "罗博特科",
+   "close": 238.33,
+   "prev_close": 276.5,
+   "open": 265.02,
+   "amount_yi": 24.655,
+   "time": "20261116161448",
+   "chg_pct": -13.8,
+   "high": 269.99,
+   "low": 238.0,
+   "turnover_pct": 6.04,
+   "pe_tx": "615.10",
+   "amplitude": "11.57",
+   "floatcap_yi": 387.45,
+   "totalcap_yi": 429.3,
+   "pb": "7.18",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2019-01-08",
+   "industry": "机械设备-专用设备-其他专用机械"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 10.01,
+   "netprofit_yi": 0.61,
+   "roe": 3.63,
+   "eps": 0.37,
+   "gross_margin": 44.5249852146
+  },
+  "kf": {
+   "kf_yi": 0.5817,
+   "kf_yoy": 155.023223382021,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301005": {
+  "name": "超捷股份",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "超捷股份",
+   "close": 48.16,
+   "prev_close": 53.91,
+   "open": 53.68,
+   "amount_yi": 5.441,
+   "time": "20261116161445",
+   "chg_pct": -10.67,
+   "high": 54.19,
+   "low": 48.0,
+   "turnover_pct": 5.9,
+   "pe_tx": "-842.00",
+   "amplitude": "11.48",
+   "floatcap_yi": 88.95,
+   "totalcap_yi": 90.51,
+   "pb": "11.57",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2021-06-01",
+   "industry": "交运设备-汽车-汽车零部件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 6.43,
+   "netprofit_yi": 0.01,
+   "roe": 0.18,
+   "eps": 0.01,
+   "gross_margin": 20.5353903678
+  },
+  "kf": {
+   "kf_yi": -0.0139,
+   "kf_yoy": -106.099884275838,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301047": {
+  "name": "义翘神州",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "义翘神州",
+   "close": 91.92,
+   "prev_close": 99.2,
+   "open": 98.0,
+   "amount_yi": 6.109,
+   "time": "20261116161442",
+   "chg_pct": -7.34,
+   "high": 98.89,
+   "low": 91.5,
+   "turnover_pct": 5.46,
+   "pe_tx": "62.44",
+   "amplitude": "7.45",
+   "floatcap_yi": 109.92,
+   "totalcap_yi": 111.81,
+   "pb": "2.16",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2021-08-16",
+   "industry": "医药生物-生物医药-生物医药"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 6.04,
+   "netprofit_yi": 1.42,
+   "roe": 2.65,
+   "eps": 1.1634,
+   "gross_margin": 74.595624616
+  },
+  "kf": {
+   "kf_yi": 0.8664,
+   "kf_yoy": 39.169290244449,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301080": {
+  "name": "百普赛斯",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "百普赛斯",
+   "close": 76.02,
+   "prev_close": 83.62,
+   "open": 80.02,
+   "amount_yi": 12.192,
+   "time": "20261116161442",
+   "chg_pct": -9.09,
+   "high": 82.0,
+   "low": 75.51,
+   "turnover_pct": 12.47,
+   "pe_tx": "65.46",
+   "amplitude": "7.76",
+   "floatcap_yi": 96.42,
+   "totalcap_yi": 127.47,
+   "pb": "4.64",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2021-10-18",
+   "industry": "医药生物-生物医药-生物医药"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 8.01,
+   "netprofit_yi": 1.62,
+   "roe": 5.96,
+   "eps": 0.9657,
+   "gross_margin": 90.2781767354
+  },
+  "kf": {
+   "kf_yi": 1.5069,
+   "kf_yoy": 13.614921382283,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301093": {
+  "name": "华兰股份",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "华兰股份",
+   "close": 44.35,
+   "prev_close": 48.5,
+   "open": 48.0,
+   "amount_yi": 1.777,
+   "time": "20261116161430",
+   "chg_pct": -8.56,
+   "high": 48.0,
+   "low": 44.22,
+   "turnover_pct": 1.92,
+   "pe_tx": "241.93",
+   "amplitude": "7.79",
+   "floatcap_yi": 90.25,
+   "totalcap_yi": 94.52,
+   "pb": "4.29",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2021-11-01",
+   "industry": "医药生物-医疗器械-医疗器械"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 4.6,
+   "netprofit_yi": 0.32,
+   "roe": 1.47,
+   "eps": 0.151,
+   "gross_margin": 41.5336421562
+  },
+  "kf": {
+   "kf_yi": 0.1799,
+   "kf_yoy": -55.94298530719,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301127": {
+  "name": "武汉天源",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "武汉天源",
+   "close": 12.27,
+   "prev_close": 12.91,
+   "open": 12.85,
+   "amount_yi": 1.889,
+   "time": "20261116161430",
+   "chg_pct": -4.96,
+   "high": 12.94,
+   "low": 12.17,
+   "turnover_pct": 2.32,
+   "pe_tx": "35.46",
+   "amplitude": "5.96",
+   "floatcap_yi": 80.3,
+   "totalcap_yi": 82.71,
+   "pb": "2.36",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2021-12-30",
+   "industry": "公用事业-环保-环保"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 14.63,
+   "netprofit_yi": 1.51,
+   "roe": 4.34,
+   "eps": 0.23,
+   "gross_margin": 30.6650969239
+  },
+  "kf": {
+   "kf_yi": 1.3355,
+   "kf_yoy": -0.227296586436,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301150": {
+  "name": "中一科技",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "中一科技",
+   "close": 26.5,
+   "prev_close": 28.29,
+   "open": 27.92,
+   "amount_yi": 2.755,
+   "time": "20261116161406",
+   "chg_pct": -6.33,
+   "high": 28.01,
+   "low": 26.3,
+   "turnover_pct": 3.35,
+   "pe_tx": "27.22",
+   "amplitude": "6.04",
+   "floatcap_yi": 80.52,
+   "totalcap_yi": 85.83,
+   "pb": "2.23",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2022-04-21",
+   "industry": "电子设备-电子元件-电子元件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 64.42,
+   "netprofit_yi": 2.89,
+   "roe": 7.76,
+   "eps": 0.8912,
+   "gross_margin": 7.7474541662
+  },
+  "kf": {
+   "kf_yi": 2.5887,
+   "kf_yoy": 2872.21046204906,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301200": {
+  "name": "大族数控",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "大族数控",
+   "close": 123.82,
+   "prev_close": 137.36,
+   "open": 136.0,
+   "amount_yi": 5.462,
+   "time": "20261116161430",
+   "chg_pct": -9.86,
+   "high": 136.76,
+   "low": 123.0,
+   "turnover_pct": 1.0,
+   "pe_tx": "32.26",
+   "amplitude": "10.02",
+   "floatcap_yi": 526.53,
+   "totalcap_yi": 605.49,
+   "pb": "4.88",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2022-02-28",
+   "industry": "机械设备-专用设备-其他专用机械"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 78.41,
+   "netprofit_yi": 15.44,
+   "roe": 14.64,
+   "eps": 3.27,
+   "gross_margin": 36.6523858027
+  },
+  "kf": {
+   "kf_yi": 15.354,
+   "kf_yoy": 222.520029648517,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301217": {
+  "name": "铜冠铜箔",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "铜冠铜箔",
+   "close": 61.73,
+   "prev_close": 67.54,
+   "open": 66.99,
+   "amount_yi": 9.445,
+   "time": "20261116161400",
+   "chg_pct": -8.6,
+   "high": 67.12,
+   "low": 61.35,
+   "turnover_pct": 1.79,
+   "pe_tx": "151.19",
+   "amplitude": "8.54",
+   "floatcap_yi": 511.75,
+   "totalcap_yi": 511.75,
+   "pb": "9.00",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2022-01-27",
+   "industry": "电子设备-电子元件-电子元件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 65.33,
+   "netprofit_yi": 3.39,
+   "roe": 6.09,
+   "eps": 0.41,
+   "gross_margin": 8.6308392914
+  },
+  "kf": {
+   "kf_yi": 3.2759,
+   "kf_yoy": 582.38426104423,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301251": {
+  "name": "威尔高",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "威尔高",
+   "close": 43.5,
+   "prev_close": 47.77,
+   "open": 47.06,
+   "amount_yi": 4.079,
+   "time": "20261116161421",
+   "chg_pct": -8.94,
+   "high": 47.06,
+   "low": 43.1,
+   "turnover_pct": 5.23,
+   "pe_tx": "45.58",
+   "amplitude": "8.29",
+   "floatcap_yi": 75.62,
+   "totalcap_yi": 82.03,
+   "pb": "4.86",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2023-09-06",
+   "industry": "电子设备-电子元件-电子元件"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 18.56,
+   "netprofit_yi": 1.82,
+   "roe": 10.95,
+   "eps": 0.97,
+   "gross_margin": 22.7929201686
+  },
+  "kf": {
+   "kf_yi": 1.7931,
+   "kf_yoy": 162.398150439285,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301373": {
+  "name": "凌玮科技",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "凌玮科技",
+   "close": 67.35,
+   "prev_close": 73.46,
+   "open": 72.11,
+   "amount_yi": 3.168,
+   "time": "20261116161427",
+   "chg_pct": -8.32,
+   "high": 72.63,
+   "low": 66.9,
+   "turnover_pct": 6.54,
+   "pe_tx": "54.15",
+   "amplitude": "7.80",
+   "floatcap_yi": 46.91,
+   "totalcap_yi": 73.06,
+   "pb": "4.28",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2023-02-08",
+   "industry": "基础化工-化学制品-其他化学制品"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 4.45,
+   "netprofit_yi": 1.01,
+   "roe": 5.94,
+   "eps": 0.93,
+   "gross_margin": 45.046380129
+  },
+  "kf": {
+   "kf_yi": 0.9468,
+   "kf_yoy": 5.241778113296,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ },
+ "301603": {
+  "name": "乔锋智能",
+  "mkt": "sz",
+  "seg": "-",
+  "tx": {
+   "name_tx": "乔锋智能",
+   "close": 82.77,
+   "prev_close": 88.82,
+   "open": 88.0,
+   "amount_yi": 2.215,
+   "time": "20261116161430",
+   "chg_pct": -6.81,
+   "high": 88.0,
+   "low": 82.08,
+   "turnover_pct": 6.94,
+   "pe_tx": "19.04",
+   "amplitude": "6.67",
+   "floatcap_yi": 31.23,
+   "totalcap_yi": 99.95,
+   "pb": "3.50",
+   "is_st": false
+  },
+  "listing": {
+   "LISTING_DATE": "2024-07-10",
+   "industry": "机械设备-通用设备-机床设备"
+  },
+  "fin": {
+   "report": "2026-09-30",
+   "revenue_yi": 28.68,
+   "netprofit_yi": 4.51,
+   "roe": 17.18,
+   "eps": 3.73,
+   "gross_margin": 31.1608547127
+  },
+  "kf": {
+   "kf_yi": 4.3637,
+   "kf_yoy": 61.403170036749,
+   "roe_kf": null,
+   "report": "2026-09-30"
+  }
+ }
+}
