@@ -669,9 +669,9 @@ def render_universe_scan(us):
                % (uni.get('base') or 0, uni.get('st_removed') or 0, uni.get('final') or 0,
                   us.get('stage_filter', {}).get('early_min', 1),
                   us.get('stage_filter', {}).get('early_max', 3), us.get('per_theme') or 5))
-    out.append('<div class="note"><b>与上面的 Top5 完全独立：</b>'
-               'Top5 只从观察池 202 只里产生；本区是全市场热题材里相对强势的个股，'
-               '<b>不参与 Top5 排名、不自动入池</b>，只作为人工换池的候选清单。'
+    out.append('<div class="note"><b>本区块与观察池无关：</b>'
+               '池内自 2026-11-17 起不再排名，本区直接扫全市场热题材，'
+               '不受观察池限制。<b>不参与任何排名、不自动入池</b>，只作为人工换池的候选清单。'
                '“池外”即当前不在观察池内的标的，才是值得考虑补进池子的。</div>')
     return '\n'.join(out)
 
