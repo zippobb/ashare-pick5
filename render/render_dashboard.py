@@ -12,6 +12,7 @@ import os
 import sys
 import json
 import html
+import csv
 import argparse
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -22,6 +23,7 @@ WEEK = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 # 恢复展示时把对应开关改回 True 即可，不需要改其它代码。
 SHOW_POOL_TOP5 = False
 SHOW_MARKET_TOP5 = False
+# 2026-11-17 用户指令：不再做池内选股，池内只做策略命中标记（见 render_pool_hits）。
 
 
 # ---------- 工具 ----------
@@ -30,6 +32,7 @@ ICEPOINT_SCAN_JSON = '/opt/stock-automation/scanner/config/icepoint_scan_latest.
 SUBFAMILY_STRENGTH_JSON = '/opt/stock-automation/scanner/config/subfamily_strength_latest.json'   # 细分族强度（已参与全市场腿打分）
 DIRECTION_STRENGTH_JSON = '/opt/stock-automation/scanner/config/direction_strength.json'   # 大方向主线状态（2026-11-01 新增）
 SUBFAMILY_MAP_JSON = '/opt/stock-automation/scanner/config/subfamily_map.json'   # 细分族映射（股票代码 -> 细分族名）
+POOL_CSV = '/opt/stock-automation/scanner/config/observation_pool.csv'   # 观察池（自选 + AI 推荐）；2026-11-17 起只做策略命中标记、不再做池内排名
 
 
 def load(p, default=None):
@@ -673,6 +676,31 @@ def render_universe_scan(us):
     return '\n'.join(out)
 
 
+def _burst_members(b):
+    """潜在启动题材的族内个股：优先用 top 字段（涨幅前 3），否则退回族内最高涨幅那一只。"""
+    tops = b.get('top') or []
+    if not tops:
+        if b.get('max_code'):
+            tops = [{'code': b.get('max_code'), 'name': b.get('max_name'),
+                     'pct': b.get('max_pct')}]
+        else:
+            return '—'
+    parts = []
+    for x in tops:
+        code = str(x.get('code') or '').split('.')[0]
+        nm = esc(x.get('name') or '')
+        pv = x.get('pct')
+        try:
+            pv = float(pv)
+            ptxt = ('%+.2f%%' % pv)
+        except Exception:
+            ptxt = '—'
+        cell = '<b>%s</b> <span class="mono" style="color:var(--muted)">%s</span> ' \
+               '<span class="mono %s">%s</span>' % (nm, esc(code), pct_cls(pv), ptxt)
+        parts.append(cell)
+    return '<br>'.join(parts)
+
+
 def render_icepoint(ice):
     """冰点骤升 + 券商核心标的（观察区，不改 Top5）。"""
     if not ice:
@@ -704,10 +732,12 @@ def render_icepoint(ice):
                       '<td class="r mono ' + cls + '">' + txt + '</td>'
                       '<td class="r mono ' + pct_cls(b.get('max_pct')) + '">'
                       + pct_txt(b.get('max_pct')) + '</td>'
+                      '<td>' + _burst_members(b) + '</td>'
                       '<td>' + _band_tag.get(b.get('band'), '-') + '</td></tr>')
         out.append('<table><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
                    '<th class="r">前日占比</th><th class="r">当日占比</th>'
                    '<th class="r">当日均涨</th><th class="r">族内最高</th>'
+                   '<th>族内可选个股（涨幅前 3）</th>'
                    '<th>档位</th></tr>' + ''.join(tr) + '</table>')
         if len(bursts) > 20:
             out.append('<div class="note">仅显示涨幅前 20 个，共 %d 个。</div>' % len(bursts))
@@ -765,6 +795,105 @@ def render_market_picks(picks_market):
 
 
 
+def _ts_code(c):
+    """6 位代码补交易所后缀；已带后缀原样返回。"""
+    c = str(c or '').strip()
+    if not c:
+        return ''
+    if '.' in c:
+        return c
+    if c.startswith('6'):
+        return c + '.SH'
+    if c.startswith(('4', '8')):
+        return c + '.BJ'
+    return c + '.SZ'
+
+
+def load_pool():
+    """观察池 -> {ts_code: name}。读不到返回空 dict（页面降级为无池区块）。"""
+    if not os.path.exists(POOL_CSV):
+        return {}
+    out = {}
+    try:
+        with open(POOL_CSV, encoding='utf-8-sig') as f:
+            for r in csv.DictReader(f):
+                c = _ts_code(r.get('ts_code'))
+                if c:
+                    out[c] = (r.get('name') or '').strip()
+    except Exception:
+        return {}
+    return out
+
+
+def render_pool_hits(market, pool):
+    """池内策略命中：只列观察池中被 KHunter / 超跌反弹 v2 命中的个股。"""
+    kh = market.get('khunter') or {}
+    ov = market.get('oversold_v2') or {}
+    kh_rows = [r for r in (kh.get('rows') or [])
+               if _ts_code(r.get('ts_code') or r.get('code')) in pool]
+    ov_rows = [r for r in (ov.get('rows') or [])
+               if _ts_code(r.get('ts_code') or r.get('code')) in pool]
+    head = ('<h2>四、池内策略命中（KHunter / 超跌反弹）</h2>'
+            '<div class="sub" style="margin:10px 0 8px">'
+            '<b>观察池自 2026-11-17 起不再做池内排名</b>，池内个股由本人自行观察；'
+            '本区块只做一件事——把观察池里<b>被策略命中的个股单独列出来</b>。'
+            '观察池共 <b>%d</b> 只，其中命中 KHunter <b>%d</b> 只、'
+            '超跌反弹 v2 <b>%d</b> 只。命中只代表当日形态符合该策略条件，'
+            '<b>不构成推荐、不参与打分</b>。</div>' % (len(pool), len(kh_rows), len(ov_rows)))
+    out = [head]
+    if not kh_rows and not ov_rows:
+        out.append('<div class="note">今日观察池内无 KHunter / 超跌反弹命中。</div>')
+        return '\n'.join(out)
+    if kh_rows:
+        kh_rows = sorted(kh_rows, key=lambda r: -float(r.get('chg') or 0))
+        tr = []
+        for r in kh_rows:
+            src = r.get('theme_src') or ''
+            label = (r.get('theme') or '—') + ('（行业）' if src in ('行业兜底', '生效行业') else '')
+            tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td><td>%s</td>'
+                      '<td>%s</td><td class="r mono">%s</td>'
+                      '<td class="r mono %s">%s</td><td class="r mono">%s</td><td>%s</td></tr>'
+                      % (esc(_ts_code(r.get('ts_code') or r.get('code'))[:6]),
+                         esc(r.get('name')), esc(r.get('strategy')), esc(r.get('status') or ''),
+                         esc(label), esc(r.get('close')),
+                         pct_cls(r.get('chg')), pct_txt(r.get('chg')),
+                         esc(r.get('mv')), esc(r.get('reason') or '')))
+        out.append('<div class="sub" style="margin:14px 0 6px"><b>KHunter 命中（%d 只）</b>'
+                   '（按当日涨幅降序；状态＝该策略在 11-11 人工裁决中的档位）</div>' % len(kh_rows))
+        out.append('<table><tr><th>代码</th><th>名称</th><th>策略</th><th>状态</th><th>题材</th>'
+                   '<th class="r">收盘</th><th class="r">当日%%</th><th class="r">市值亿</th>'
+                   '<th>命中依据</th></tr>%s</table>' % ''.join(tr))
+    else:
+        out.append('<div class="note">今日观察池内无 KHunter 命中。</div>')
+    if ov_rows:
+        tr = []
+        for r in ov_rows:
+            src = r.get('theme_src') or ''
+            label = (r.get('theme') or '—') + ('（行业）' if src in ('行业兜底', '生效行业') else '')
+            tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>'
+                      '<td class="r mono">%s</td><td class="r mono %s">%s</td>'
+                      '<td class="r mono">%s</td><td class="r mono">%s</td>'
+                      '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
+                      % (esc(_ts_code(r.get('ts_code') or r.get('code'))[:6]),
+                         esc(r.get('name')), esc(label), esc(r.get('close')),
+                         pct_cls(r.get('chg')), pct_txt(r.get('chg')), esc(r.get('mv')),
+                         esc(r.get('amp20')), esc(r.get('vol20')), esc(r.get('amt_pct'))))
+        out.append('<div class="sub" style="margin:14px 0 6px"><b>超跌反弹 v2 命中（%d 只）</b>'
+                   '（C1 腰斩 + C3 反弹上限 + KDJ 存在型底背离，'
+                   '再取 AMP20 / VOL20 / 成交额分位 各最低 50%% 的交集）</div>' % len(ov_rows))
+        out.append('<table><tr><th>代码</th><th>名称</th><th>题材</th><th class="r">收盘</th>'
+                   '<th class="r">当日%%</th><th class="r">市值亿</th><th class="r">AMP20</th>'
+                   '<th class="r">VOL20</th><th class="r">额分位</th></tr>%s</table>' % ''.join(tr))
+    if not ov_rows:
+        out.append('<div class="note">今日观察池内无超跌反弹 v2 命中。</div>')
+    both = ({_ts_code(r.get('ts_code') or r.get('code')) for r in kh_rows}
+            & {_ts_code(r.get('ts_code') or r.get('code')) for r in ov_rows})
+    if both:
+        out.append('<div class="note"><b>两套策略同时命中：</b>%s</div>'
+                   % '、'.join(sorted(c[:6] for c in both)))
+    return '\n'.join(out)
+
+
 def render_khunter(kh):
     """KHunter 7 策略选股（观察区块）。kh 来自 market.json 的 khunter 字段。"""
     if not kh or not kh.get('rows'):
@@ -796,7 +925,7 @@ def render_khunter(kh):
             '行业兜底（标「（行业）」）；悬停可看来源，仅展示不参与筛选。'
             '<b>排序</b>：按策略固定顺序（保留→观察→优化）分组，组内保持原始顺序。</div>'
             % esc(dd.get('hidden', 0)))
-    return ('<h2>KHunter 策略选股（观察，%d 只）</h2>' % len(rows) + note +
+    return ('<h2>五、KHunter 全市场选股（观察，%d 只）</h2>' % len(rows) + note +
             '<table><tr><th>代码</th><th>名称</th><th>题材</th><th>策略</th>'
             '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th></tr>'
             '%s</table>' % tr)
@@ -860,7 +989,7 @@ def render_oversold_v2(ov):
             '表格按成交额分位升序；已剔 ST/*ST、退市、北交所、当日停牌、上市不足 120 根 K 线。'
             '本策略已通过项目完整七关检验（用户口径：交易成本不计入），作为看板主要展示策略；'
             '<b>不进 Top5、不参与打分、不构成推荐</b>。</div>')
-    return ('<h2>新版超跌反弹 v2（主要展示策略，%d 只 · %s）</h2>'
+    return ('<h2>六、新版超跌反弹 v2（全市场，主要展示策略，%d 只 · %s）</h2>'
             % (len(rows), esc(ov.get('trade_date') or '')) + note +
             '<table><tr><th>代码</th><th>名称</th><th>题材</th>'
             '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th>'
@@ -870,9 +999,10 @@ def render_oversold_v2(ov):
 
 def render_foot(narr):
     return ('<div class="disc">%s<br><br>本页由数据管线自动生成，'
-            '仅供本人交易参考，不构成投资建议。评分框架：位置60 20 + 基本面 30 + 5日动量 20 + 技术 30'
-            ' + 细分族强度 10 = 110（+ 题材内相对强势 30，仅题材优先模式生效），不含流动性维度；'
-            '成交额不参与打分、不影响排名。逻辑纯度自 2026-10-31 起仅作展示、不计分。<br>'
+            '仅供本人交易参考，不构成投资建议。'
+            '<b>观察池自 2026-11-17 起不再做池内排名</b>：池内个股只做两件事——'
+            '标出 KHunter / 超跌反弹是否命中，以及列示潜在启动题材的族内可选个股。'
+            '成交额不参与任何打分、不影响任何排序。逻辑纯度仅作展示、不计分。<br>'
             '<b>位置60</b>（60日价格位置）=（今收 − 60日最低）÷（60日最高 − 60日最低）×100：'
             '100 = 创 60 日新高，0 = 60 日最低。它衡量股价在近 60 日箱体里的相对位置，'
             '不是「最近涨了多少」。<br>'
@@ -897,6 +1027,11 @@ def render(data_dir, narrative_path, out_path):
     uscan = ((market.get('rotation') or {}).get('universe_scan')
              or load(UNIVERSE_SCAN_JSON))
     ice = (market.get('rotation') or {}).get('icepoint_scan') or load(ICEPOINT_SCAN_JSON)
+    # 潜在启动扫描的 config 版本比 market.json 内嵌版更新（含族内个股 top 字段），
+    # 交易日一致时优先用 config，避免渲染出缺列的旧结构。
+    _ice_fresh = load(ICEPOINT_SCAN_JSON)
+    if _ice_fresh and str(_ice_fresh.get('trade_date') or '') == str(td):
+        ice = _ice_fresh
     sfs = (market.get('rotation') or {}).get('subfamily_strength') or load(SUBFAMILY_STRENGTH_JSON)
     ev = load(os.path.join(data_dir, 'event_driven.json'), {})
     body = [render_head(td, market, gen), render_alert(narr), render_snap(market.get('env') or {}),
@@ -904,6 +1039,7 @@ def render(data_dir, narrative_path, out_path):
             render_events(ev or {}),
             render_universe_scan(uscan or {}),
             render_icepoint(ice or {}),
+            render_pool_hits(market, load_pool()),
             '<h2>四、今日五个标的（按确定性排名）</h2>',
             '<div class="sub" style="margin-bottom:12px">排名即优先级。'
             '<b>只买 1 只 → 取第 1 名；买 2 只 → 取第 1 + 2 名。</b><br>'
@@ -935,7 +1071,6 @@ def render(data_dir, narrative_path, out_path):
     if SHOW_MARKET_TOP5:
         body.append(render_market_picks(picks_market))
     body.append(render_khunter(market.get('khunter')))
-    body.append(render_dropped(dropped))
     body.append(render_oversold_v2(market.get('oversold_v2')))
     body.append(render_foot(narr))
 
