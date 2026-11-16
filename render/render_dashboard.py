@@ -829,6 +829,9 @@ def render_pool_hits(market, pool):
     """池内策略命中：只列观察池中被 KHunter / 超跌反弹 v2 命中的个股。"""
     kh = market.get('khunter') or {}
     ov = market.get('oversold_v2') or {}
+    if not pool:
+        # 池文件读不到（换机渲染 / 路径缺失）时不渲染空壳，避免误导为"池内零命中"
+        return ''
     kh_rows = [r for r in (kh.get('rows') or [])
                if _ts_code(r.get('ts_code') or r.get('code')) in pool]
     ov_rows = [r for r in (ov.get('rows') or [])
