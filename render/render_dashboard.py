@@ -834,7 +834,9 @@ def render_pool_hits(market, pool):
         return ''
     kh_rows = [r for r in (kh.get('rows') or [])
                if _ts_code(r.get('ts_code') or r.get('code')) in pool]
-    ov_rows = [r for r in (ov.get('rows') or [])
+    # 「池内命中」看的是当日是否命中，不受 v2 去重影响 → 用 rows_all（gate 后全量）
+    ov_src = ov.get('rows_all') or ov.get('rows') or []
+    ov_rows = [r for r in ov_src
                if _ts_code(r.get('ts_code') or r.get('code')) in pool]
     head = ('<h2>四、池内策略命中（KHunter / 超跌反弹）</h2>'
             '<div class="sub" style="margin:10px 0 8px">'
