@@ -997,12 +997,13 @@ def render_oversold_v2(ov):
     dd = ov.get('dedup') or {}
     hid = dd.get('hidden') or 0
     if dd:
+        win = dd.get('window') or 1
         title = ('六、新版超跌反弹 v2（全市场，主要展示策略，今日新增 %d 只 · %s）'
                  % (len(rows), esc(ov.get('trade_date') or '')))
-        note = note.replace('</div>', '⑥ <b>去重</b>＝同一票若<b>上一交易日已命中</b>则今天不再展示'
-                            '（连续段仅首次，断开后再次触发算新首次）；'
-                            '今日另有 <b>%d 只</b>连续命中已隐藏，gate 后共 %d 只。</div>'
-                            % (hid, dd.get('before') or len(rows)))
+        note = note.replace('</div>', '⑥ <b>去重</b>＝近 <b>%d 个交易日</b>内命中过该策略的票，'
+                            '今天不再展示（<b>一个窗口内只出现第一次</b>，走出窗口后再触发才算新首次）；'
+                            '今日另有 <b>%d 只</b>已隐藏，gate 后共 %d 只。</div>'
+                            % (win, hid, dd.get('before') or len(rows)))
     else:
         title = ('六、新版超跌反弹 v2（全市场，主要展示策略，%d 只 · %s）'
                  % (len(rows), esc(ov.get('trade_date') or '')))
