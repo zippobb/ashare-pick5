@@ -1516,14 +1516,6 @@ def main():
             market['khunter'] = _kh
     except Exception:
         pass
-    # 超跌龙头（观察通道；systemd ExecStartPre 每日生成，缺失安全降级）
-    try:
-        import json as _json_ol
-        _ol = _json_ol.load(open('/opt/bt/oversold_leader_latest.json', encoding='utf-8'))
-        if _ol.get('trade_date') == want:
-            market['oversold_leader'] = _ol
-    except Exception:
-        pass
     # 新版超跌反弹 v2（主要展示策略；systemd ExecStartPre 每日生成，缺失安全降级）
     try:
         import json as _json_ov

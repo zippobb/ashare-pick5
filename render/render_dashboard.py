@@ -1000,46 +1000,6 @@ def render_oversold_v2(ov):
             '%s</table>' % ''.join(tr))
 
 
-def render_oversold_leader(ol):
-    """超跌龙头 · 观察通道（龙头＝各题材内总市值第一，题材取质检层）。ol 来自 market.json。"""
-    if not ol or not ol.get('rows'):
-        return ''
-    rows = ol.get('rows') or []
-    tr = []
-    for r in rows:
-        theme = r.get('theme') or '—'
-        src = r.get('theme_src') or '无'
-        label = theme + '（行业）' if src in ('行业兜底', '生效行业') else theme
-        td = '<td title="题材来源：%s">%s</td>' % (esc(src), esc(label))
-        tr.append('<tr><td class="mono">%s</td><td>%s</td>%s'
-                  '<td class="r mono">%s</td><td class="r mono">%+.2f</td>'
-                  '<td class="r mono">%s</td><td class="r mono">%s</td>'
-                  '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
-                  % (esc(r.get('code')), esc(r.get('name')), td,
-                     esc(r.get('close')), float(r.get('chg') or 0), esc(r.get('mv')),
-                     esc(r.get('dd120')), esc(r.get('rebound')), esc(r.get('amt_pct'))))
-    note = ('<div class="note"><b>规则</b>（全部只用 T 日及之前数据，无前视）：'
-            '① <b>深跌</b>＝收盘价 ≤ 近 120 日最高价 × 50%（较 120 日高点腰斩一半以上）；'
-            '② <b>未反弹</b>＝收盘价 ≤ 近 100 日最低价 × 1.3（较 100 日低点反弹不足 30%）；'
-            '③ <b>龙头</b>＝该票在<b>所属题材内总市值排名第 1</b>'
-            '（题材取<b>质检层主归属</b>：概念只有证据充分时才采用、否则退回三级行业；'
-            '东财概念榜每次更新的排序漂移不作数；题材内成员少于 5 只不参与龙头判定，'
-            '避免小分组自动产生“龙头”）；'
-            '④ <b>KDJ 存在型底背离</b>＝近 5 日内出现过「当日最低价创新低、但 J 值高于此前某一个低点日」'
-            '（J＝3K−2D，K/D 为 KDJ(9,3,3) 的 1/3 指数平滑）。<br>'
-            '<b>性质</b>：这是<b>观察名单，不是策略</b>。按同一题材口径做全市场回测，'
-            '本结构 fwd5 超额 +0.0779%（t0.67，日均 5.5 只），统计上不显著；'
-            '此前用东财错标题材分组得到的 +0.2538%（t2.54）已证伪。'
-            '它只用来覆盖主策略三重 gate 天然排除的大票'
-            '（如 2026-11-09 的中际旭创）。'
-            '<b>不进 Top5、不参与打分、不构成推荐</b>。表格按总市值降序；'
-            '已剔 ST/*ST、退市、北交所、当日停牌、上市不足 120 根 K 线。</div>')
-    return ('<h2>超跌龙头 · 观察通道（%d 只 · %s）</h2>'
-            % (len(rows), esc(ol.get('trade_date') or '')) + note +
-            '<table><tr><th>代码</th><th>名称</th><th>题材</th>'
-            '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th>'
-            '<th class="r">120日回撤%%</th><th class="r">较低点反弹%%</th><th class="r">额分位</th></tr>'
-            '%s</table>' % ''.join(tr))
 
 
 def render_foot(narr):
@@ -1116,7 +1076,6 @@ def render(data_dir, narrative_path, out_path):
     if SHOW_MARKET_TOP5:
         body.append(render_market_picks(picks_market))
     body.append(render_khunter(market.get('khunter')))
-    body.append(render_oversold_leader(market.get('oversold_leader')))
     body.append(render_oversold_v2(market.get('oversold_v2')))
     body.append(render_foot(narr))
 
