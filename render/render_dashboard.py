@@ -989,11 +989,22 @@ def render_oversold_v2(ov):
             '<b>VOL20</b>（过去 20 日日收益率的标准差）、'
             '<b>当日成交额分位</b>（当日成交额在全市场横截面的百分位，数值越小越冷门）'
             '三项各取最低的 50%，取交集。<br>'
-            '表格按成交额分位升序；已剔 ST/*ST、退市、北交所、当日停牌、上市不足 120 根 K 线。'
+            '表格按成交额分位升序；已剔 ST/*ST、退市、北交所、当日停牌、上市不足 120 根 K 线。<br>'
             '本策略已通过项目完整七关检验（用户口径：交易成本不计入），作为看板主要展示策略；'
             '<b>不进 Top5、不参与打分、不构成推荐</b>。</div>')
-    return ('<h2>六、新版超跌反弹 v2（全市场，主要展示策略，%d 只 · %s）</h2>'
-            % (len(rows), esc(ov.get('trade_date') or '')) + note +
+    dd = ov.get('dedup') or {}
+    hid = dd.get('hidden') or 0
+    if dd:
+        title = ('六、新版超跌反弹 v2（全市场，主要展示策略，今日新增 %d 只 · %s）'
+                 % (len(rows), esc(ov.get('trade_date') or '')))
+        note = note.replace('</div>', '⑥ <b>去重</b>＝同一票若<b>上一交易日已命中</b>则今天不再展示'
+                            '（连续段仅首次，断开后再次触发算新首次）；'
+                            '今日另有 <b>%d 只</b>连续命中已隐藏，gate 后共 %d 只。</div>'
+                            % (hid, dd.get('before') or len(rows)))
+    else:
+        title = ('六、新版超跌反弹 v2（全市场，主要展示策略，%d 只 · %s）'
+                 % (len(rows), esc(ov.get('trade_date') or '')))
+    return ('<h2>%s</h2>' % title + note +
             '<table><tr><th>代码</th><th>名称</th><th>题材</th>'
             '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th>'
             '<th class="r">AMP20</th><th class="r">VOL20</th><th class="r">额分位</th></tr>'
