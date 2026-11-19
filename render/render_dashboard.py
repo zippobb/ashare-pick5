@@ -32,6 +32,7 @@ ICEPOINT_SCAN_JSON = '/opt/stock-automation/scanner/config/icepoint_scan_latest.
 SUBFAMILY_STRENGTH_JSON = '/opt/stock-automation/scanner/config/subfamily_strength_latest.json'   # 细分族强度（已参与全市场腿打分）
 DIRECTION_STRENGTH_JSON = '/opt/stock-automation/scanner/config/direction_strength.json'   # 大方向主线状态（2026-11-01 新增）
 SUBFAMILY_MAP_JSON = '/opt/stock-automation/scanner/config/subfamily_map.json'   # 细分族映射（股票代码 -> 细分族名）
+CHAR_QUAD_JSON = '/opt/stock-automation/scanner/config/stock_char_quadrant.json'   # 股性四象限（族内 500 日，纯标签，2026-11-19 用户要求上板）
 POOL_CSV = '/opt/stock-automation/scanner/config/observation_pool.csv'   # 观察池（自选 + AI 推荐）；2026-11-17 起只做策略命中标记、不再做池内排名
 
 
@@ -59,6 +60,44 @@ def subfamily_of(code):
             for _c in (_sb.get('stocks') or []):
                 _SF_MAP[_c] = _sb.get('sub')
     return _SF_MAP.get(code)
+
+
+_CHAR_MAP = None
+
+
+def char_of(code):
+    """股性四象限标签（族内 500 日）。缓存一次，按 6 位代码或 ts_code 查。"""
+    global _CHAR_MAP
+    if _CHAR_MAP is None:
+        _CHAR_MAP = {}
+        d = load(CHAR_QUAD_JSON) or {}
+        for r in (d.get('stocks') or []):
+            _c = r.get('code') or ''
+            _CHAR_MAP[_c] = r
+            if '.' in _c:
+                _CHAR_MAP[_c.split('.')[0]] = r
+    return _CHAR_MAP.get(code) or _CHAR_MAP.get(_ts_code(code))
+
+
+_CHAR_CLS = {'优': 'cq-you', '中': 'cq-mid', '差': 'cq-bad', '钝': 'cq-dull'}
+
+
+def char_tag(code):
+    """股性标签：优=跟涨不跟跌 / 中=跟涨也跟跌 / 差=跟跌不跟涨 / 钝=都不跟。纯展示。"""
+    r = char_of(code)
+    if not r:
+        return '<span class="tag cq cq-na" title="无股性标签（未评级或不在族表）">—</span>'
+    q = r.get('quad') or ''
+    if q.startswith('弱相关'):
+        cls, label = 'cq-na', '不评'
+        tip = '族相关性 %.2f < 0.40，族归属可疑或独立行情，不评级' % (r.get('corr') or 0)
+    else:
+        cls, label = _CHAR_CLS.get(q, 'cq-na'), q
+        tip = ('股性四象限（族内 500 日）：优=跟涨不跟跌，中=跟涨也跟跌，差=跟跌不跟涨，钝=都不跟；'
+               'up_beta=%.2f dn_beta=%.2f 跟随度=%.2f 族相关=%.2f 前后半一致=%s'
+               % (r.get('up_beta') or 0, r.get('dn_beta') or 0, r.get('e') or 0,
+                  r.get('corr') or 0, '是' if r.get('stable') else '否'))
+    return '<span class="tag cq %s" title="%s">%s</span>' % (cls, esc(tip), esc(label))
 
 
 def fnum(v, nd=2):
@@ -647,6 +686,7 @@ def render_universe_scan(us):
     for x in rec[:10]:
         rows.append('<tr><td class="mono">' + esc(x.get('code')) + '</td>'
                     '<td>' + esc(x.get('name')) + '</td>'
+                    '<td>' + char_tag(x.get('code')) + '</td>'
                     '<td>' + ('<span class="tag gy">池内</span>'
                               if x.get('in_pool') else '<span class="tag w">池外</span>') + '</td>'
                     '<td>' + esc(sf_map.get(x.get('code')) or x.get('theme') or '') + '</td>'
@@ -659,7 +699,7 @@ def render_universe_scan(us):
     out.append('<div class="sub" style="margin:16px 0 6px">'
                '<b>热题材内值得关注的全市场个股</b>（★推荐 %d 只，显示前 10；'
                '仅供观察，<b>不自动入池</b>）</div>' % len(rec))
-    out.append('<table><tr><th>代码</th><th>名称</th><th>在池</th><th>题材</th>'
+    out.append('<table><tr><th>代码</th><th>名称</th><th>股性</th><th>在池</th><th>题材</th>'
                '<th class="r">相对强势</th><th class="r">20日%</th>'
                '<th class="r">弹性</th><th>质量</th></tr>' + ''.join(rows) + '</table>')
     out.append('<div class="note">全市场 %d 只 &rarr; 剔ST %d &rarr; %d 只；'
@@ -855,17 +895,18 @@ def render_pool_hits(market, pool):
         for r in kh_rows:
             src = r.get('theme_src') or ''
             label = (r.get('theme') or '—') + ('（行业）' if src in ('行业兜底', '生效行业') else '')
-            tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td><td>%s</td>'
+            tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>'
                       '<td>%s</td><td class="r mono">%s</td>'
                       '<td class="r mono %s">%s</td><td class="r mono">%s</td><td>%s</td></tr>'
                       % (esc(_ts_code(r.get('ts_code') or r.get('code'))[:6]),
-                         esc(r.get('name')), esc(r.get('strategy')), esc(r.get('status') or ''),
+                         esc(r.get('name')), char_tag(r.get('ts_code') or r.get('code')),
+                         esc(r.get('strategy')), esc(r.get('status') or ''),
                          esc(label), esc(r.get('close')),
                          pct_cls(r.get('chg')), pct_txt(r.get('chg')),
                          esc(r.get('mv')), esc(r.get('reason') or '')))
         out.append('<div class="sub" style="margin:14px 0 6px"><b>KHunter 命中（%d 只）</b>'
                    '（按当日涨幅降序；状态＝该策略在 11-11 人工裁决中的档位）</div>' % len(kh_rows))
-        out.append('<table><tr><th>代码</th><th>名称</th><th>策略</th><th>状态</th><th>题材</th>'
+        out.append('<table><tr><th>代码</th><th>名称</th><th>股性</th><th>策略</th><th>状态</th><th>题材</th>'
                    '<th class="r">收盘</th><th class="r">当日%%</th><th class="r">市值亿</th>'
                    '<th>命中依据</th></tr>%s</table>' % ''.join(tr))
     else:
@@ -875,18 +916,19 @@ def render_pool_hits(market, pool):
         for r in ov_rows:
             src = r.get('theme_src') or ''
             label = (r.get('theme') or '—') + ('（行业）' if src in ('行业兜底', '生效行业') else '')
-            tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>'
+            tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td><td>%s</td>'
                       '<td class="r mono">%s</td><td class="r mono %s">%s</td>'
                       '<td class="r mono">%s</td><td class="r mono">%s</td>'
                       '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
                       % (esc(_ts_code(r.get('ts_code') or r.get('code'))[:6]),
-                         esc(r.get('name')), esc(label), esc(r.get('close')),
+                         esc(r.get('name')), char_tag(r.get('ts_code') or r.get('code')),
+                         esc(label), esc(r.get('close')),
                          pct_cls(r.get('chg')), pct_txt(r.get('chg')), esc(r.get('mv')),
                          esc(r.get('amp20')), esc(r.get('vol20')), esc(r.get('amt_pct'))))
         out.append('<div class="sub" style="margin:14px 0 6px"><b>超跌反弹 v2 命中（%d 只）</b>'
                    '（C1 腰斩 + C3 反弹上限 + KDJ 存在型底背离，'
                    '再取 AMP20 / VOL20 / 成交额分位 各最低 50%% 的交集）</div>' % len(ov_rows))
-        out.append('<table><tr><th>代码</th><th>名称</th><th>题材</th><th class="r">收盘</th>'
+        out.append('<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th class="r">收盘</th>'
                    '<th class="r">当日%%</th><th class="r">市值亿</th><th class="r">AMP20</th>'
                    '<th class="r">VOL20</th><th class="r">额分位</th></tr>%s</table>' % ''.join(tr))
     if not ov_rows:
@@ -914,9 +956,9 @@ def render_khunter(kh):
         src = r.get('theme_src') or '无'
         label = theme + '（行业）' if src in ('行业兜底', '生效行业') else theme
         td = '<td title="题材来源：%s">%s</td>' % (esc(src), esc(label))
-        tr.append('<tr><td class="mono">%s</td><td>%s</td>%s<td>%s</td>'
+        tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>%s<td>%s</td>'
                   '<td class="r mono">%s</td><td class="r mono">%+.2f</td><td class="r mono">%s</td></tr>'
-                  % (esc(r.get('code')), esc(r.get('name')), td,
+                  % (esc(r.get('code')), esc(r.get('name')), char_tag(r.get('code')), td,
                      esc(r.get('strategy')), esc(r.get('close')),
                      float(r.get('chg') or 0), esc(r.get('mv'))))
     tr = ''.join(tr)
@@ -931,7 +973,7 @@ def render_khunter(kh):
             '<b>排序</b>：按策略固定顺序（保留→观察→优化）分组，组内保持原始顺序。</div>'
             % esc(dd.get('hidden', 0)))
     return ('<h2>五、KHunter 全市场选股（观察，%d 只）</h2>' % len(rows) + note +
-            '<table><tr><th>代码</th><th>名称</th><th>题材</th><th>策略</th>'
+            '<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th>策略</th>'
             '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th></tr>'
             '%s</table>' % tr)
 
@@ -974,11 +1016,11 @@ def render_oversold_v2(ov):
         src = r.get('theme_src') or '无'
         label = theme + '（行业）' if src in ('行业兜底', '生效行业') else theme
         td = '<td title="题材来源：%s">%s</td>' % (esc(src), esc(label))
-        tr.append('<tr><td class="mono">%s</td><td>%s</td>%s'
+        tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>%s'
                   '<td class="r mono">%s</td><td class="r mono">%+.2f</td>'
                   '<td class="r mono">%s</td><td class="r mono">%s</td>'
                   '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
-                  % (esc(r.get('code')), esc(r.get('name')), td,
+                  % (esc(r.get('code')), esc(r.get('name')), char_tag(r.get('code')), td,
                      esc(r.get('close')), float(r.get('chg') or 0), esc(r.get('mv')),
                      esc(r.get('amp20')), esc(r.get('vol20')), esc(r.get('amt_pct'))))
     note = ('<div class="note"><b>规则</b>（全部只用 T 日及之前数据，无前视）：'
@@ -1008,7 +1050,7 @@ def render_oversold_v2(ov):
         title = ('六、新版超跌反弹 v2（全市场，主要展示策略，%d 只 · %s）'
                  % (len(rows), esc(ov.get('trade_date') or '')))
     return ('<h2>%s</h2>' % title + note +
-            '<table><tr><th>代码</th><th>名称</th><th>题材</th>'
+            '<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th>'
             '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th>'
             '<th class="r">AMP20</th><th class="r">VOL20</th><th class="r">额分位</th></tr>'
             '%s</table>' % ''.join(tr))
@@ -1025,6 +1067,11 @@ def render_foot(narr):
             '<b>位置60</b>（60日价格位置）=（今收 − 60日最低）÷（60日最高 − 60日最低）×100：'
             '100 = 创 60 日新高，0 = 60 日最低。它衡量股价在近 60 日箱体里的相对位置，'
             '不是「最近涨了多少」。<br>'
+            '<b>股性标签</b>（族内 500 日）：<b>优</b>=跟涨不跟跌、<b>中</b>=跟涨也跟跌、'
+            '<b>差</b>=跟跌不跟涨、<b>钝</b>=都不跟（族涨 1%% 个股涨幅不足 0.8%% 视为不跟）；'
+            '族相关性 &lt;0.40 标「不评」。<b>纯标签：不参与打分、不影响排序、不构成推荐</b>；'
+            '其中「涨多还是跌多」这一维前后半窗口一致率仅 13~17%%（约等于随机），'
+            '只作当期状态参考，不作长期特性。<br>'
             '公式与阈值为实验参数，未做历史回测，不保证未来有效。</div>'
             % (narr.get('foot') or ''))
 

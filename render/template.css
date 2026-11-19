@@ -66,6 +66,13 @@ td.r,th.r{text-align:right}
 .tag.b{background:#ecfdf5;color:#047857;border-color:#c6f0dc}
 .tag.w{background:var(--warnbg);color:var(--warn);border-color:var(--warnline)}
 .tag.gy{background:#f3f4f6;color:#4b5563;border-color:#e5e7eb}
+/* 股性四象限标签（族内 500 日，纯展示） */
+.tag.cq{font-weight:600;letter-spacing:0}
+.tag.cq-you{background:#ecfdf5;color:#047857;border-color:#c6f0dc}
+.tag.cq-mid{background:#eef2ff;color:#3730a3;border-color:#dbe1fb}
+.tag.cq-bad{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+.tag.cq-dull{background:#f9fafb;color:#6b7280;border-color:#e5e7eb}
+.tag.cq-na{background:#fff;color:#9ca3af;border-color:#eee;border-style:dashed}
 .pick-bd{padding:14px 18px 16px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:760px){.grid2{grid-template-columns:1fr}}
