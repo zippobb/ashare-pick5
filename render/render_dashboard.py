@@ -32,7 +32,8 @@ ICEPOINT_SCAN_JSON = '/opt/stock-automation/scanner/config/icepoint_scan_latest.
 SUBFAMILY_STRENGTH_JSON = '/opt/stock-automation/scanner/config/subfamily_strength_latest.json'   # 细分族强度（已参与全市场腿打分）
 DIRECTION_STRENGTH_JSON = '/opt/stock-automation/scanner/config/direction_strength.json'   # 大方向主线状态（2026-11-01 新增）
 SUBFAMILY_MAP_JSON = '/opt/stock-automation/scanner/config/subfamily_map.json'   # 细分族映射（股票代码 -> 细分族名）
-CHAR_QUAD_JSON = '/opt/stock-automation/scanner/config/stock_char_quadrant.json'   # 股性四象限（族内 500 日，纯标签，2026-11-19 用户要求上板）
+CHAR_QUAD_JSON = '/opt/stock-automation/scanner/config/stock_char_quadrant.json'
+YAO_JSON = '/opt/stock-automation/scanner/config/stock_yao.json'   # 妖＝无族+短期暴涨（2026-11-21 用户要求）   # 股性四象限（族内 500 日，纯标签，2026-11-19 用户要求上板）
 POOL_CSV = '/opt/stock-automation/scanner/config/observation_pool.csv'   # 观察池（自选 + AI 推荐）；2026-11-17 起只做策略命中标记、不再做池内排名
 
 
@@ -79,14 +80,35 @@ def char_of(code):
     return _CHAR_MAP.get(code) or _CHAR_MAP.get(_ts_code(code))
 
 
-_CHAR_CLS = {'优': 'cq-you', '中': 'cq-mid', '差': 'cq-bad', '钝': 'cq-dull'}
+_CHAR_CLS = {'优': 'cq-you', '中': 'cq-mid', '差': 'cq-bad', '钝': 'cq-dull', '妖': 'cq-yao'}
+
+_YAO_MAP = None
+
+
+def yao_of(code):
+    """无族股「妖」标记：无族 + r20>=20% 或 r60>=50%。"""
+    global _YAO_MAP
+    if _YAO_MAP is None:
+        _YAO_MAP = {}
+        for _r in ((load(YAO_JSON) or {}).get('stocks') or []):
+            _c = _r.get('code') or ''
+            _YAO_MAP[_c] = _r
+            if '.' in _c:
+                _YAO_MAP[_c.split('.')[0]] = _r
+    return _YAO_MAP.get(code) or _YAO_MAP.get(_ts_code(code))
 
 
 def char_tag(code):
     """股性标签：优=跟涨不跟跌 / 中=跟涨也跟跌 / 差=跟跌不跟涨 / 钝=都不跟。纯展示。"""
     r = char_of(code)
+    y = yao_of(code)
+    if not r and y:
+        return ('<span class="tag cq cq-yao" title="妖：无族 + 短期暴涨（r20=%+.1f%% r60=%+.1f%%，行业=%s）'
+                '——纯资金炒作、无板块归属，不进打分">妖</span>'
+                % (y.get('r20') or 0, y.get('r60') or 0, esc(y.get('industry_l3') or '-')))
     if not r:
         return '<span class="tag cq cq-na" title="无股性标签（未评级或不在族表）">—</span>'
+
     q = r.get('quad') or ''
     if q.startswith('弱相关'):
         cls, label = 'cq-na', '不评'
