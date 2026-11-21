@@ -33,7 +33,7 @@ SUBFAMILY_STRENGTH_JSON = '/opt/stock-automation/scanner/config/subfamily_streng
 DIRECTION_STRENGTH_JSON = '/opt/stock-automation/scanner/config/direction_strength.json'   # 大方向主线状态（2026-11-01 新增）
 SUBFAMILY_MAP_JSON = '/opt/stock-automation/scanner/config/subfamily_map.json'   # 细分族映射（股票代码 -> 细分族名）
 CHAR_QUAD_JSON = '/opt/stock-automation/scanner/config/stock_char_quadrant.json'
-YAO_JSON = '/opt/stock-automation/scanner/config/stock_yao.json'   # 妖＝无族+短期暴涨（2026-11-21 用户要求）   # 股性四象限（族内 500 日，纯标签，2026-11-19 用户要求上板）
+YAO_JSON = '/opt/stock-automation/scanner/config/stock_yao.json'   # 妖＝无族+250日内曾暴涨（2026-11-21 用户修正：短期指'窗口内曾出现'）   # 股性四象限（族内 500 日，纯标签，2026-11-19 用户要求上板）
 POOL_CSV = '/opt/stock-automation/scanner/config/observation_pool.csv'   # 观察池（自选 + AI 推荐）；2026-11-17 起只做策略命中标记、不再做池内排名
 
 
@@ -103,9 +103,10 @@ def char_tag(code):
     r = char_of(code)
     y = yao_of(code)
     if not r and y:
-        return ('<span class="tag cq cq-yao" title="妖：无族 + 短期暴涨（r20=%+.1f%% r60=%+.1f%%，行业=%s）'
+        return ('<span class="tag cq cq-yao" title="妖：无族 + 250日内曾出现20日涨%+.1f%%、跑赢市场%+.1f%%（%s，行业=%s）'
                 '——纯资金炒作、无板块归属，不进打分">妖</span>'
-                % (y.get('r20') or 0, y.get('r60') or 0, esc(y.get('industry_l3') or '-')))
+                % (y.get('peak_r20') or 0, y.get('peak_ex20') or 0,
+                   y.get('peak_date') or '-', esc(y.get('industry_l3') or '-')))
     if not r:
         return '<span class="tag cq cq-na" title="无股性标签（未评级或不在族表）">—</span>'
 
