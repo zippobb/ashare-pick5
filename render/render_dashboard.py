@@ -739,9 +739,9 @@ def render_universe_scan(us):
     return '\n'.join(out)
 
 
-def _burst_members(b):
-    """潜在启动题材的族内个股：优先用 top 字段（涨幅前 3），否则退回族内最高涨幅那一只。"""
-    tops = b.get('top') or []
+def _burst_members(b, limit=2):
+    """潜在启动题材的族内个股：取 top 字段涨幅前 limit 只（默认 2），否则退回族内最高那一只。"""
+    tops = (b.get('top') or [])[:limit]
     if not tops:
         if b.get('max_code'):
             tops = [{'code': b.get('max_code'), 'name': b.get('max_name'),
@@ -776,12 +776,9 @@ def render_icepoint(ice):
     out.append('<h2>三之二、潜在启动题材（全档对照，仅供观察）</h2>')
     out.append('<div class="sub" style="margin:16px 0 6px">'
                '<b>当日「潜在启动」细分族 %d 个</b>（前日上涨占比&lt;20%% → 当日&gt;50%% 且均涨转正，'
-               '细分族粒度、等权个股口径；按族内最高涨幅标出档位，'
+               '细分族粒度、等权个股口径；'
                '<b>5&ndash;9%% 温和档是回测最优档</b>，已在第二部分单独列出）。'
                '普涨日该信号会满屏飘红，仅供观察，<b>不改 Top5、不参与打分</b>。</div>' % len(bursts))
-    _band_tag = {'5to9': '<span class="tag gy">温和5-9%</span>',
-                 'over9': '<span class="tag w">过热&ge;9%</span>',
-                 'under5': '<span style="color:var(--muted)">弱&lt;5%</span>'}
     if bursts:
         tr = []
         for b in bursts[:20]:
@@ -795,13 +792,11 @@ def render_icepoint(ice):
                       '<td class="r mono ' + cls + '">' + txt + '</td>'
                       '<td class="r mono ' + pct_cls(b.get('max_pct')) + '">'
                       + pct_txt(b.get('max_pct')) + '</td>'
-                      '<td>' + _burst_members(b) + '</td>'
-                      '<td>' + _band_tag.get(b.get('band'), '-') + '</td></tr>')
-        out.append('<table><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
+                      '<td>' + _burst_members(b) + '</td></tr>')
+        out.append('<table class="cmp"><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
                    '<th class="r">前日占比</th><th class="r">当日占比</th>'
                    '<th class="r">当日均涨</th><th class="r">族内最高</th>'
-                   '<th>族内可选个股（涨幅前 3）</th>'
-                   '<th>档位</th></tr>' + ''.join(tr) + '</table>')
+                   '<th>族内可选个股（涨幅前 2）</th></tr>' + ''.join(tr) + '</table>')
         if len(bursts) > 20:
             out.append('<div class="note">仅显示涨幅前 20 个，共 %d 个。</div>' % len(bursts))
     if core:
