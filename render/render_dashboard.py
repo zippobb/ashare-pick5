@@ -805,22 +805,78 @@ def render_icepoint(ice):
         if len(bursts) > 20:
             out.append('<div class="note">仅显示涨幅前 20 个，共 %d 个。</div>' % len(bursts))
     if core:
-        out.append('<div class="sub" style="margin:16px 0 6px"><b>潜在启动细分族内的券商核心标的 %d 个</b>'
-                   '（券商点名的正宗龙头；「领涨」= 当日跑赢所在细分族均值，'
-                   '用于验证板块是否真启动，不是买入推荐）</div>' % len(core))
+        # 按细分族聚合：领涨率 = 族内领涨核心数 ÷ 族内核心标的总数（2026-11-23 起改为族级口径）
+        fams = {}
+        for c in core:
+            k = c.get('sub') or c.get('family') or '-'
+            d = fams.get(k)
+            if d is None:
+                d = fams[k] = {'sub': k, 'dir': c.get('direction') or '',
+                               'n': 0, 'led': 0, 'ln': [], 'lg': []}
+            d['n'] += 1
+            if c.get('leading'):
+                d['led'] += 1
+                d['ln'].append((c.get('name'), c.get('pct')))
+            else:
+                d['lg'].append((c.get('name'), c.get('pct')))
+        rows_f = list(fams.values())
+        for d in rows_f:
+            d['rate'] = d['led'] * 100.0 / d['n'] if d['n'] else 0.0
+        bmean = {b.get('sub'): b.get('cur_mean_ret') for b in bursts}
+        rows_f.sort(key=lambda d: (-d['rate'], -d['n']))
+        top_f = rows_f[:10]
+        tot_n = sum(d['n'] for d in rows_f)
+        tot_led = sum(d['led'] for d in rows_f)
+        n_thin = sum(1 for d in top_f if d['n'] <= 2)
+
+        def _nm(lst, color):
+            if not lst:
+                return '<span style="color:#b6bcc6">—</span>'
+            return '<span style="color:%s">%s</span>' % (
+                color, '&ensp;'.join(
+                    esc(n) + ('(%+.1f)' % p if p is not None else '') for n, p in lst))
+
+        def _bar(rate):
+            if rate >= 50:
+                col = '#d32029'
+            elif rate >= 25:
+                col = '#d97706'
+            elif rate > 0:
+                col = '#eab308'
+            else:
+                col = '#d1d5db'
+            return ('<span style="display:inline-block;width:46px;height:6px;background:#eef1f5;'
+                    'border-radius:3px;overflow:hidden;vertical-align:middle">'
+                    '<i style="display:block;height:100%%;width:%.1f%%;background:%s"></i></span>'
+                    % (max(rate, 1.5), col))
+
+        out.append('<div class="sub" style="margin:16px 0 6px">'
+                   '<b>潜在启动细分族 × 券商核心标的：领涨率前 10</b>'
+                   '（核心标的共 %d 只、分布在 %d 个触发族；'
+                   '<b>领涨率</b> = 族内当日跑赢族均值的核心数 ÷ 族内核心标的总数，'
+                   '用于验证板块是否真启动，不是买入推荐）</div>'
+                   % (len(core), len(rows_f)))
         tr = []
-        for c in core[:30]:
-            cls = pct_cls(c.get('pct'))
-            txt = pct_txt(c.get('pct'))
-            lead = '<span class="tag gy">领涨</span>' if c.get('leading') else '—'
-            tr.append('<tr><td class="mono">' + esc(c.get('code')) + '</td>'
-                      '<td>' + esc(c.get('name')) + '</td>'
-                      '<td>' + esc(c.get('role')) + '</td>'
-                      '<td>' + esc(c.get('sub') or c.get('cluster')) + '</td>'
-                      '<td class="r mono ' + cls + '">' + txt + '</td>'
-                      '<td>' + lead + '</td></tr>')
-        out.append('<table><tr><th>代码</th><th>名称</th><th>角色</th><th>细分族</th>'
-                   '<th class="r">当日%</th><th>领涨</th></tr>' + ''.join(tr) + '</table>')
+        for i, d in enumerate(top_f, 1):
+            fm = bmean.get(d['sub'])
+            tr.append('<tr><td class="mono r" style="color:#b6bcc6">' + str(i) + '</td>'
+                      '<td><b>' + esc(d['sub']) + '</b></td>'
+                      '<td class="sub">' + esc(d['dir']) + '</td>'
+                      '<td class="r mono">' + str(d['n']) + '</td>'
+                      '<td class="r mono">' + str(d['led']) + '</td>'
+                      '<td class="r mono">' + _bar(d['rate'])
+                      + ' <b>%.0f%%</b></td>' % d['rate']
+                      + '<td class="r mono ' + pct_cls(fm) + '">' + pct_txt(fm, 1) + '</td>'
+                      '<td style="font-size:12px;line-height:1.7">'
+                      + _nm(d['ln'], '#b91c1c') + '<br>' + _nm(d['lg'], '#8b929e') + '</td></tr>')
+        out.append('<table><tr><th class="r">#</th><th>细分族</th><th>大方向</th>'
+                   '<th class="r">核心数</th><th class="r">领涨</th><th class="r">领涨率</th>'
+                   '<th class="r">族均涨</th><th>领涨（红）/ 未领涨（灰）・括号内为当日涨幅</th></tr>'
+                   + ''.join(tr) + '</table>')
+        out.append('<div class="note">全部 %d 族合计 %d/%d = %.1f%%。'
+                   '前 10 名里有 %d 个族分母只有 1&ndash;2 只，比例天然只有 0%%/50%%/100%%，'
+                   '信息量低；领涨只是「跑赢族均值」的相对概念，不代表绝对收益。</div>'
+                   % (len(rows_f), tot_led, tot_n, tot_led * 100.0 / tot_n if tot_n else 0, n_thin))
     return '\n'.join(out)
 
 
