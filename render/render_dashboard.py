@@ -823,7 +823,8 @@ def render_icepoint(ice):
         for d in rows_f:
             d['rate'] = d['led'] * 100.0 / d['n'] if d['n'] else 0.0
         bmean = {b.get('sub'): b.get('cur_mean_ret') for b in bursts}
-        rows_f.sort(key=lambda d: (-d['rate'], -d['n']))
+        rows_f.sort(key=lambda d: (-d['rate'], -d['n'],
+                                   -sum((p or 0) for _n, p in d['ln']), d['sub']))
         top_f = rows_f[:10]
         tot_n = sum(d['n'] for d in rows_f)
         tot_led = sum(d['led'] for d in rows_f)
