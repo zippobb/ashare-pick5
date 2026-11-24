@@ -1100,11 +1100,9 @@ def render_oversold_v2(ov):
         td = '<td title="题材来源：%s">%s</td>' % (esc(src), esc(label))
         tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>%s'
                   '<td class="r mono">%s</td><td class="r mono">%+.2f</td>'
-                  '<td class="r mono">%s</td><td class="r mono">%s</td>'
-                  '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
+                  '<td class="r mono">%s</td></tr>'
                   % (esc(r.get('code')), esc(r.get('name')), char_tag(r.get('code')), td,
-                     esc(r.get('close')), float(r.get('chg') or 0), esc(r.get('mv')),
-                     esc(r.get('amp20')), esc(r.get('vol20')), esc(r.get('amt_pct'))))
+                     esc(r.get('close')), float(r.get('chg') or 0), esc(r.get('mv'))))
     note = ('<div class="note"><b>规则</b>（全部只用 T 日及之前数据，无前视）：'
             '① <b>C1 腰斩</b>＝收盘价 ≤ 近 120 日最高价 × 50%；'
             '② <b>C3 反弹上限</b>＝较近 100 日最低价反弹 ≤ 30%；'
@@ -1133,8 +1131,7 @@ def render_oversold_v2(ov):
                  % (len(rows), esc(ov.get('trade_date') or '')))
     return ('<h2>%s</h2>' % title + note +
             '<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th>'
-            '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th>'
-            '<th class="r">AMP20</th><th class="r">VOL20</th><th class="r">额分位</th></tr>'
+            '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th></tr>'
             '%s</table>' % ''.join(tr))
 
 
