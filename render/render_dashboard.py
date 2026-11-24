@@ -35,6 +35,9 @@ SUBFAMILY_MAP_JSON = '/opt/stock-automation/scanner/config/subfamily_map.json'  
 CHAR_QUAD_JSON = '/opt/stock-automation/scanner/config/stock_char_quadrant.json'
 YAO_JSON = '/opt/stock-automation/scanner/config/stock_yao.json'   # 妖＝无族+250日内曾暴涨（2026-11-21 用户修正：短期指'窗口内曾出现'）   # 股性四象限（族内 500 日，纯标签，2026-11-19 用户要求上板）
 POOL_CSV = '/opt/stock-automation/scanner/config/observation_pool.csv'   # 观察池（自选 + AI 推荐）；2026-11-17 起只做策略命中标记、不再做池内排名
+# 云端渲染机没有 /opt/stock-automation（那是 ECS 本地路径）→ 股性/妖曾全变「—」。
+# 由 ECS 每日把精简副本发布到仓库 data/，这里按脚本相对路径兜底（2026-11-24）。
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'data')
 
 
 def load(p, default=None):
@@ -66,17 +69,40 @@ def subfamily_of(code):
 _CHAR_MAP = None
 
 
+def _load_first(paths):
+    """按顺序取第一个含 stocks 的文件；全无则返回 {}（渲染降级为无标签，不报错）。"""
+    for p in paths:
+        d = load(p) or {}
+        if d.get('stocks'):
+            return d
+    return {}
+
+
+def _norm_char(r):
+    """精简副本（c/q/r/ub/db/e/s）→ 渲染字段名；完整版原样返回。"""
+    if 'quad' in r or 'c' not in r:
+        return r
+    return {'code': r.get('c'), 'quad': r.get('q') or '',
+            'corr': r.get('r') or 0, 'up_beta': r.get('ub') or 0,
+            'dn_beta': r.get('db') or 0, 'e': r.get('e') or 0,
+            'stable': bool(r.get('s'))}
+
+
 def char_of(code):
-    """股性四象限标签（族内 500 日）。缓存一次，按 6 位代码或 ts_code 查。"""
+    """股性四象限标签（族内 500 日）。缓存一次，按 6 位代码或 ts_code 查。
+
+    数据来源优先 ECS 原始文件，其次仓库内精简副本（云端渲染只有后者）。
+    """
     global _CHAR_MAP
     if _CHAR_MAP is None:
         _CHAR_MAP = {}
-        d = load(CHAR_QUAD_JSON) or {}
-        for r in (d.get('stocks') or []):
-            _c = r.get('code') or ''
-            _CHAR_MAP[_c] = r
+        d = _load_first([CHAR_QUAD_JSON, os.path.join(DATA_DIR, 'char_latest.json')])
+        for _r in (d.get('stocks') or []):
+            _r = _norm_char(_r)
+            _c = _r.get('code') or ''
+            _CHAR_MAP[_c] = _r
             if '.' in _c:
-                _CHAR_MAP[_c.split('.')[0]] = r
+                _CHAR_MAP[_c.split('.')[0]] = _r
     return _CHAR_MAP.get(code) or _CHAR_MAP.get(_ts_code(code))
 
 
@@ -85,12 +111,23 @@ _CHAR_CLS = {'优': 'cq-you', '中': 'cq-mid', '差': 'cq-bad', '钝': 'cq-dull'
 _YAO_MAP = None
 
 
+def _norm_yao(r):
+    """精简副本（c/r20/ex/d/ind）→ 渲染字段名；完整版原样返回。"""
+    if 'peak_r20' in r or 'c' not in r:
+        return r
+    return {'code': r.get('c'), 'peak_r20': r.get('r20') or 0,
+            'peak_ex20': r.get('ex') or 0, 'peak_date': r.get('d') or '',
+            'industry_l3': r.get('ind') or ''}
+
+
 def yao_of(code):
-    """无族股「妖」标记：无族 + r20>=20% 或 r60>=50%。"""
+    """无族股「妖」标记：无族 + 250 日内曾出现 20 日暴涨（见 §4.5）。"""
     global _YAO_MAP
     if _YAO_MAP is None:
         _YAO_MAP = {}
-        for _r in ((load(YAO_JSON) or {}).get('stocks') or []):
+        _d = _load_first([YAO_JSON, os.path.join(DATA_DIR, 'yao_latest.json')])
+        for _r in (_d.get('stocks') or []):
+            _r = _norm_yao(_r)
             _c = _r.get('code') or ''
             _YAO_MAP[_c] = _r
             if '.' in _c:
