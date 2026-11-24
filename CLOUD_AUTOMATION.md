@@ -88,6 +88,10 @@ https://github.com/settings/personal-access-tokens/new?name=pick5-cloud-publish&
 - https://raw.githubusercontent.com/zippobb/ashare-pick5/main/<path>/verify.json
 - https://raw.githubusercontent.com/zippobb/ashare-pick5/main/render/render_dashboard.py
 - https://raw.githubusercontent.com/zippobb/ashare-pick5/main/render/template.css
+- https://raw.githubusercontent.com/zippobb/ashare-pick5/main/data/char_latest.json   （股性四象限精简副本，3727 只）
+- https://raw.githubusercontent.com/zippobb/ashare-pick5/main/data/yao_latest.json     （妖名单精简副本，54 只）
+  ↑ 后两个是**纯展示用的股性/妖数据**。云端没有 ECS 的 /opt/stock-automation 路径，
+  拉不到这两个文件时渲染脚本还能自己去 raw 取（多等 1~2 秒）；主动拉下来更快也更稳。
 
 **硬性校验：`trade_date` 必须等于今天。不等就立刻中止并汇报
 「上游未交付当日数据（trade_date=xxx，今日=yyy）」，不要发布、不要沿用旧数据。**
@@ -157,6 +161,8 @@ mkdir -p work && cd work
 curl -sO $RAW/render/render_dashboard.py
 curl -sO $RAW/render/template.css     # 与上面同目录
 curl -sO $RAW/publish_pages.py
+curl -sO $RAW/data/char_latest.json   # 股性标签（不拉也能跑，脚本会回退去 raw 取）
+curl -sO $RAW/data/yao_latest.json
 mkdir -p daily/$TD && cd daily/$TD
 for f in picks scored market dropped verify; do curl -sO $RAW/daily/$TD/$f.json; done
 cd ..
