@@ -1199,10 +1199,21 @@ def render_oversold_v2(ov):
         src = r.get('theme_src') or '无'
         label = theme + '（行业）' if src in ('行业兜底', '生效行业') else theme
         td = '<td title="题材来源：%s">%s</td>' % (esc(src), esc(label))
-        tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>%s'
+        fd = r.get('fam_dir') or '—'
+        idd = r.get('ind_dir') or '—'
+        try:
+            pr = int(r.get('prio') or 10)
+        except (TypeError, ValueError):
+            pr = 10
+        cls = 'ddx a' if pr <= 3 else ('ddx c' if pr >= 7 else 'ddx')
+        tip = '族：%s（%s）｜行业：%s（%s）｜组合优先级 P%d' % (
+            r.get('fam') or '—', fd, r.get('ind') or '—', idd, pr)
+        td2 = ('<td><span class="%s" title="%s">%s·%s</span></td>'
+               % (cls, esc(tip), esc(fd), esc(idd)))
+        tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>%s%s'
                   '<td class="r mono">%s</td><td class="r mono">%+.2f</td>'
                   '<td class="r mono">%s</td></tr>'
-                  % (esc(r.get('code')), esc(r.get('name')), char_tag(r.get('code')), td,
+                  % (esc(r.get('code')), esc(r.get('name')), char_tag(r.get('code')), td, td2,
                      esc(r.get('close')), float(r.get('chg') or 0), esc(r.get('mv'))))
     note = ('<div class="note"><b>规则</b>（全部只用 T 日及之前数据，无前视）：'
             '① <b>C1 腰斩</b>＝收盘价 ≤ 近 120 日最高价 × 50%；'
@@ -1214,24 +1225,37 @@ def render_oversold_v2(ov):
             '<b>VOL20</b>（过去 20 日日收益率的标准差）、'
             '<b>当日成交额分位</b>（当日成交额在全市场横截面的百分位，数值越小越冷门）'
             '三项各取最低的 50%，取交集。<br>'
-            '表格按成交额分位升序；已剔 ST/*ST、退市、北交所、当日停牌、上市不足 120 根 K 线。<br>'
+            '表格按<b>族×行业强弱组合优先级</b>排序（P1 最优；同组内按成交额分位升序）；'
+            '已剔 ST/*ST、退市、北交所、当日停牌、上市不足 120 根 K 线、'
+            '<b>无题材归属（无族）</b>。<br>'
+            '<b>族/行业</b>列＝所属细分族与东财行业近 20 日收益的强弱档（在当日全部族/行业中取三分位：'
+            '弱 &lt; 1/3 ≤ 中 &lt; 2/3 ≤ 强），写作「族档·行业档」，例如 <b>中·强</b>＝族中性、行业强。'
+            '组合优先级取自 v2 全样本回测（1632 个交易日）的 5 日 / 20 日超额排序：'
+            '<b>中·强 P1</b> &gt; 强·弱 P2 &gt; 中·弱 P3 &gt; 弱·强 P4 &gt; 强·强 P5 '
+            '&gt; 强·中 P6 &gt; 中·中 P7 &gt; 弱·中 P8 &gt; 弱·弱 P9。<br>'
+            '排序只决定<b>看板呈现顺序</b>，不参与打分、不改变信号集、不是买入建议；'
+            '该排序前后半段稳定性有限（行业强/弱的方向在两段间曾反转），仅作观察参考。<br>'
             '本策略已通过项目完整七关检验（用户口径：交易成本不计入），作为看板主要展示策略；'
             '<b>不进 Top5、不参与打分、不构成推荐</b>。</div>')
     dd = ov.get('dedup') or {}
     hid = dd.get('hidden') or 0
+    nf = ov.get('no_fam') or {}
+    nfs = nf.get('shown') or 0
     if dd:
         win = dd.get('window') or 1
+        before = dd.get('before') or (len(rows) + hid)
         title = ('六、新版超跌反弹 v2（全市场，主要展示策略，今日新增 %d 只 · %s）'
                  % (len(rows), esc(ov.get('trade_date') or '')))
         note = note.replace('</div>', '⑥ <b>去重</b>＝近 <b>%d 个交易日</b>内命中过该策略的票，'
-                            '今天不再展示（<b>一个窗口内只出现第一次</b>，走出窗口后再触发才算新首次）；'
-                            '今日另有 <b>%d 只</b>已隐藏，gate 后共 %d 只。</div>'
-                            % (win, hid, dd.get('before') or len(rows)))
+                            '今天不再展示（<b>一个窗口内只出现第一次</b>，走出窗口后再触发才算新首次）。<br>'
+                            '⑦ <b>今日流程</b>：gate 后 <b>%d 只</b> → 去重隐藏 <b>%d 只</b> → '
+                            '候选 <b>%d 只</b> → 剔除无族 <b>%d 只</b> → 展示 <b>%d 只</b>。</div>'
+                            % (win, before, hid, before - hid, nfs, len(rows)))
     else:
         title = ('六、新版超跌反弹 v2（全市场，主要展示策略，%d 只 · %s）'
                  % (len(rows), esc(ov.get('trade_date') or '')))
     return ('<h2>%s</h2>' % title + note +
-            '<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th>'
+            '<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th>族/行业</th>'
             '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th></tr>'
             '%s</table>' % ''.join(tr))
 

@@ -76,6 +76,11 @@ td.r,th.r{text-align:right}
 .tag.cq-yao{background:#fdf4ff;color:#a21caf;border-color:#f0abfc;font-weight:700}
 /* 2026-11-24：低置信 / 前后半不一致的股性标签用虚线边区分 */
 .tag.cq-wk{border-style:dashed}
+/* 2026-11-25：超跌反弹 v2 的族/行业强弱档（中性色阶，不用红绿避免与涨跌混淆） */
+.ddx{display:inline-block;padding:1px 6px;border-radius:5px;font-size:11px;line-height:1.5;
+  background:#f3f4f6;color:#4b5563;border:1px solid #e5e7eb;white-space:nowrap}
+.ddx.a{background:#eef2ff;color:#3730a3;border-color:#dbe1fb;font-weight:600}
+.ddx.c{background:#fff;color:#9ca3af;border-color:#f4f4f5}
 .pick-bd{padding:14px 18px 16px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:760px){.grid2{grid-template-columns:1fr}}
