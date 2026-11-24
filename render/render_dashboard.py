@@ -558,10 +558,17 @@ def render_start59(ice, subs_all):
 
     out = []
     if rows_src:
-        tag = '' if today else (' · 回溯至 ' + esc(lsd or '-'))
-        out.append('<div class="sub" style="margin:12px 0 6px">'
-                   '<b>题材启动 · 温和档（5–9%）' + str(len(rows_src)) + ' 个</b>'
-                   + tag + '</div>')
+        if today:
+            out.append('<div class="sub" style="margin:12px 0 6px">'
+                       '<b>题材启动 · 温和档（5–9%）' + str(len(rows_src)) + ' 个</b></div>')
+        else:
+            snap = (lsd[:4] + '-' + lsd[4:6] + '-' + lsd[6:8]) if len(lsd) == 8 else (lsd or '-')
+            out.append('<div class="sub" style="margin:12px 0 6px;background:var(--warnbg);'
+                       'border-left:4px solid var(--warn);border-radius:6px;padding:9px 12px">'
+                       '<b>题材启动 · 温和档</b>｜今日无信号，以下为 <b>' + esc(snap) + '</b> 快照'
+                       '<span style="display:block;margin-top:3px;font-size:12px;color:var(--warn)">'
+                       '表内「前日占比 / 当日占比 / 当日均涨 / 族内最高 / 领涨股」均为 '
+                       + esc(snap) + ' 数据；「族5日」为今日滚动值。</span></div>')
         out.append(head + ''.join(_row(b) for b in rows_src[:15]) + '</table>')
         if len(rows_src) > 15:
             out.append('<div class="note">仅显示当日均涨幅前 15 个，共 ' + str(len(rows_src))
