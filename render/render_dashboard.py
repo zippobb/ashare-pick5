@@ -231,8 +231,16 @@ def fnum(v, nd=2):
     return '-' if v is None else ('%.*f' % (nd, v))
 
 
+PCT_BIG = 5.0   # 涨跌幅「大」档阈值（%）：|v| >= 5 记作大红 / 大绿
+
+
 def pct_cls(v):
-    return 'flat' if v is None or v == 0 else ('up' if v > 0 else 'down')
+    """涨跌幅四档配色：大红(>=+5%) / 浅红(0~+5%) / 浅绿(-5%~0) / 大绿(<=-5%)。"""
+    if v is None or v == 0:
+        return 'flat'
+    if v > 0:
+        return 'up-h' if v >= PCT_BIG else 'up-l'
+    return 'down-h' if v <= -PCT_BIG else 'down-l'
 
 
 def pct_txt(v, nd=2, sign=True):
@@ -655,7 +663,7 @@ def render_start59(ice, subs_all):
                 '<td>' + esc((b.get('max_name') or '') + ' ' + (b.get('max_code') or '')) + '</td>'
                 '<td class="r mono ' + pct_cls(r5) + '">' + pct_txt(r5) + '</td></tr>')
 
-    head = ('<table><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
+    head = ('<div class="tw"><table><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
             '<th class="r">前日占比</th><th class="r">当日占比</th>'
             '<th class="r">当日均涨</th><th class="r">族内最高</th>'
             '<th>领涨股</th><th class="r">族5日</th></tr>')
@@ -673,7 +681,7 @@ def render_start59(ice, subs_all):
                        '<span style="display:block;margin-top:3px;font-size:12px;color:var(--warn)">'
                        '表内「前日占比 / 当日占比 / 当日均涨 / 族内最高 / 领涨股」均为 '
                        + esc(snap) + ' 数据；「族5日」为今日滚动值。</span></div>')
-        out.append(head + ''.join(_row(b) for b in rows_src[:15]) + '</table>')
+        out.append(head + ''.join(_row(b) for b in rows_src[:15]) + '</table></div>')
         if len(rows_src) > 15:
             out.append('<div class="note">仅显示当日均涨幅前 15 个，共 ' + str(len(rows_src))
                        + ' 个。</div>')
@@ -776,11 +784,11 @@ def render_rotation(rot, ice=None):
     if watch_rows:
         out.append('<div class="sub" style="margin:10px 0 4px"><b>12 大方向状态</b>'
                    '（细分族收益按成员数加权，5 日强弱排序）</div>')
-        out.append('<table><tr><th>大方向</th><th>主线状态</th>'
+        out.append('<div class="tw"><table><tr><th>大方向</th><th>主线状态</th>'
                    '<th class="r">细分族</th><th class="r">成员</th>'
                    '<th class="r">5日</th><th class="r">20日</th>'
                    '<th class="r">上涨占比</th><th class="r">5日涨停</th></tr>'
-                   + ''.join(watch_rows) + '</table>')
+                   + ''.join(watch_rows) + '</table></div>')
     _start_html = render_start59(ice, subs_all)
     if _start_html:
         out.append(_start_html)
@@ -788,9 +796,9 @@ def render_rotation(rot, ice=None):
         out.append('<div class="sub" style="margin:14px 0 4px">'
                    '<b>上涨趋势末端</b>（连涨 &ge;' + str(rot.get('top_streak') or 4)
                    + ' 天，' + esc(mstate) + '中容易买在高点）</div>')
-        out.append('<table><tr><th>题材</th><th class="r">连涨</th>'
+        out.append('<div class="tw"><table><tr><th>题材</th><th class="r">连涨</th>'
                    '<th class="r">本轮涨幅</th><th class="r">距MA20</th>'
-                   '<th class="r">池内</th></tr>' + ''.join(trt) + '</table>')
+                   '<th class="r">池内</th></tr>' + ''.join(trt) + '</table></div>')
     out.append('<div class="note"><b>怎么读：</b>「阶段」= 首涨 / 连涨第 N 天 / 末端（连涨&ge;4 天）；'
                '热度用<b>全市场</b>成员算，不设成交额门槛；高相关题材已按集群去重，鼠标悬停可看原始题材。'
                '主线状态由相对收益、上涨持续性、MA20广度、近20日新高扩散和龙头强度共同判定，暂只观察不改权重。'
@@ -833,9 +841,9 @@ def render_universe_scan(us):
     out.append('<div class="sub" style="margin:16px 0 6px">'
                '<b>热题材内值得关注的全市场个股</b>（★推荐 %d 只，显示前 10；'
                '仅供观察，<b>不自动入池</b>）</div>' % len(rec))
-    out.append('<table><tr><th>代码</th><th>名称</th><th>股性</th><th>在池</th><th>题材</th>'
+    out.append('<div class="tw"><table><tr><th>代码</th><th>名称</th><th>股性</th><th>在池</th><th>题材</th>'
                '<th class="r">相对强势</th><th class="r">20日%</th>'
-               '<th class="r">弹性</th><th>质量</th></tr>' + ''.join(rows) + '</table>')
+               '<th class="r">弹性</th><th>质量</th></tr>' + ''.join(rows) + '</table></div>')
     out.append('<div class="note">全市场 %d 只 &rarr; 剔ST %d &rarr; %d 只；'
                '取「首涨/连涨%d~%d天」的热题材，按<b>题材内相对强势</b>每题材挑 %d 只。'
                '&#9733; = 弹性&ge;18 且非亏损。题材标签为机器派生，可能偏离主业，'
@@ -904,10 +912,10 @@ def render_icepoint(ice):
                       '<td class="r mono ' + pct_cls(b.get('max_pct')) + '">'
                       + pct_txt(b.get('max_pct')) + '</td>'
                       '<td>' + _burst_members(b) + '</td></tr>')
-        out.append('<table class="cmp"><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
+        out.append('<div class="tw"><table class="cmp"><tr><th>细分族</th><th>大方向</th><th class="r">成员</th>'
                    '<th class="r">前日占比</th><th class="r">当日占比</th>'
                    '<th class="r">当日均涨</th><th class="r">族内最高</th>'
-                   '<th>族内可选个股（涨幅前 2）</th></tr>' + ''.join(tr) + '</table>')
+                   '<th>族内可选个股（涨幅前 2）</th></tr>' + ''.join(tr) + '</table></div>')
         if len(bursts) > 20:
             out.append('<div class="note">仅显示涨幅前 20 个，共 %d 个。</div>' % len(bursts))
     if core:
@@ -976,10 +984,10 @@ def render_icepoint(ice):
                       + '<td class="r mono ' + pct_cls(fm) + '">' + pct_txt(fm, 1) + '</td>'
                       '<td style="font-size:12px;line-height:1.7">'
                       + _nm(d['ln'], '#b91c1c') + '<br>' + _nm(d['lg'], '#8b929e') + '</td></tr>')
-        out.append('<table><tr><th class="r">#</th><th>细分族</th><th>大方向</th>'
+        out.append('<div class="tw"><table><tr><th class="r">#</th><th>细分族</th><th>大方向</th>'
                    '<th class="r">核心数</th><th class="r">领涨</th><th class="r">领涨率</th>'
                    '<th class="r">族均涨</th><th>领涨（红）/ 未领涨（灰）・括号内为当日涨幅</th></tr>'
-                   + ''.join(tr) + '</table>')
+                   + ''.join(tr) + '</table></div>')
         out.append('<div class="note">全部 %d 族合计 %d/%d = %.1f%%。'
                    '前 10 名里有 %d 个族分母只有 1&ndash;2 只，比例天然只有 0%%/50%%/100%%，'
                    '信息量低；领涨只是「跑赢族均值」的相对概念，不代表绝对收益。</div>'
@@ -1092,9 +1100,9 @@ def render_pool_hits(market, pool):
                          esc(r.get('mv')), esc(r.get('reason') or '')))
         out.append('<div class="sub" style="margin:14px 0 6px"><b>KHunter 命中（%d 只）</b>'
                    '（按当日涨幅降序；状态＝该策略在 11-11 人工裁决中的档位）</div>' % len(kh_rows))
-        out.append('<table><tr><th>代码</th><th>名称</th><th>股性</th><th>策略</th><th>状态</th><th>题材</th>'
+        out.append('<div class="tw"><table><tr><th>代码</th><th>名称</th><th>股性</th><th>策略</th><th>状态</th><th>题材</th>'
                    '<th class="r">收盘</th><th class="r">当日%%</th><th class="r">市值亿</th>'
-                   '<th>命中依据</th></tr>%s</table>' % ''.join(tr))
+                   '<th>命中依据</th></tr>%s</table></div>' % ''.join(tr))
     else:
         out.append('<div class="note">今日观察池内无 KHunter 命中。</div>')
     if ov_rows:
@@ -1123,9 +1131,9 @@ def render_pool_hits(market, pool):
         out.append('<div class="sub" style="margin:14px 0 6px"><b>超跌反弹 v2 命中（%d 只）</b>'
                    '（C1 腰斩 + C3 反弹上限 + KDJ 存在型底背离，'
                    '再取 AMP20 / VOL20 / 成交额分位 各最低 50%% 的交集；无族已剔除）</div>' % len(ov_rows))
-        out.append('<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th>族/行业</th>'
+        out.append('<div class="tw"><table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th>族/行业</th>'
                    '<th class="r">收盘</th>'
-                   '<th class="r">当日%%</th><th class="r">市值亿</th></tr>%s</table>' % ''.join(tr))
+                   '<th class="r">当日%%</th><th class="r">市值亿</th></tr>%s</table></div>' % ''.join(tr))
     if not ov_rows:
         out.append('<div class="note">今日观察池内无超跌反弹 v2 命中。</div>')
     both = ({_ts_code(r.get('ts_code') or r.get('code')) for r in kh_rows}
@@ -1151,11 +1159,13 @@ def render_khunter(kh):
         src = r.get('theme_src') or '无'
         label = theme + '（行业）' if src in ('行业兜底', '生效行业') else theme
         td = '<td title="题材来源：%s">%s</td>' % (esc(src), esc(label))
+        chg = float(r.get('chg') or 0)
         tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>%s<td>%s</td>'
-                  '<td class="r mono">%s</td><td class="r mono">%+.2f</td><td class="r mono">%s</td></tr>'
+                  '<td class="r mono">%s</td><td class="r mono %s">%+.2f</td>'
+                  '<td class="r mono">%s</td></tr>'
                   % (esc(r.get('code')), esc(r.get('name')), char_tag(r.get('code')), td,
                      esc(r.get('strategy')), esc(r.get('close')),
-                     float(r.get('chg') or 0), esc(r.get('mv'))))
+                     pct_cls(chg), chg, esc(r.get('mv'))))
     tr = ''.join(tr)
     dd = kh.get('dedup') or {}
     note = ('<div class="note">7 个未放弃策略（保留 2 / 观察 3 / 优化 2），'
@@ -1167,10 +1177,10 @@ def render_khunter(kh):
             '行业兜底（标「（行业）」）；悬停可看来源，仅展示不参与筛选。'
             '<b>排序</b>：按策略固定顺序（保留→观察→优化）分组，组内保持原始顺序。</div>'
             % esc(dd.get('hidden', 0)))
-    return ('<h2>五、KHunter 全市场选股（观察，%d 只）</h2>' % len(rows) + note +
-            '<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th>策略</th>'
+    return ('<h2>六、KHunter 全市场选股（观察，%d 只）</h2>' % len(rows) + note +
+            '<div class="tw"><table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th>策略</th>'
             '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th></tr>'
-            '%s</table>' % tr)
+            '%s</table></div>' % tr)
 
 
 def render_dropped(dropped):
@@ -1201,7 +1211,8 @@ def render_liquidity(rows):
 
 
 def render_oversold_v2(ov):
-    """新版超跌反弹 v2（看板最下方主要展示策略）。ov 来自 market.json 的 oversold_v2 字段。"""
+    """新版超跌反弹 v2（看板第五章，主要展示策略）。ov 来自 market.json 的 oversold_v2 字段。
+    2026-11-25 起与「KHunter 观察」互换位置：v2 在前（五），KHunter 在后（六）。"""
     if not ov or not ov.get('rows'):
         return ''
     rows = ov.get('rows') or []
@@ -1223,10 +1234,11 @@ def render_oversold_v2(ov):
         td2 = ('<td><span class="%s" title="%s">%s·%s</span></td>'
                % (cls, esc(tip), esc(fd), esc(idd)))
         tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>%s%s'
-                  '<td class="r mono">%s</td><td class="r mono">%+.2f</td>'
+                  '<td class="r mono">%s</td><td class="r mono %s">%+.2f</td>'
                   '<td class="r mono">%s</td></tr>'
                   % (esc(r.get('code')), esc(r.get('name')), char_tag(r.get('code')), td, td2,
-                     esc(r.get('close')), float(r.get('chg') or 0), esc(r.get('mv'))))
+                     esc(r.get('close')), pct_cls(float(r.get('chg') or 0)),
+                     float(r.get('chg') or 0), esc(r.get('mv'))))
     note = ('<div class="note"><b>规则</b>（全部只用 T 日及之前数据，无前视）：'
             '① <b>C1 腰斩</b>＝收盘价 ≤ 近 120 日最高价 × 50%；'
             '② <b>C3 反弹上限</b>＝较近 100 日最低价反弹 ≤ 30%；'
@@ -1262,7 +1274,7 @@ def render_oversold_v2(ov):
     if dd:
         win = dd.get('window') or 1
         before = dd.get('before') or (len(rows) + hid)
-        title = ('六、新版超跌反弹 v2（全市场，主要展示策略，今日新增 %d 只 · %s）'
+        title = ('五、新版超跌反弹 v2（全市场，主要展示策略，今日新增 %d 只 · %s）'
                  % (len(rows), esc(ov.get('trade_date') or '')))
         note = note.replace('</div>', '⑥ <b>去重</b>＝近 <b>%d 个交易日</b>内命中过该策略的票，'
                             '今天不再展示（<b>一个窗口内只出现第一次</b>，走出窗口后再触发才算新首次）。<br>'
@@ -1270,12 +1282,17 @@ def render_oversold_v2(ov):
                             '候选 <b>%d 只</b> → 剔除无族 <b>%d 只</b> → 展示 <b>%d 只</b>。</div>'
                             % (win, before, hid, before - hid, nfs, len(rows)))
     else:
-        title = ('六、新版超跌反弹 v2（全市场，主要展示策略，%d 只 · %s）'
+        title = ('五、新版超跌反弹 v2（全市场，主要展示策略，%d 只 · %s）'
                  % (len(rows), esc(ov.get('trade_date') or '')))
-    return ('<h2>%s</h2>' % title + note +
-            '<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th>族/行业</th>'
+    cnote = ('<div class="sub" style="margin:8px 0 6px"><b>涨跌幅配色（全页同口径）</b>：'
+             '<span class="up-h">大红 ≥+5%</span>（加粗）· <span class="up-l">浅红 0~+5%</span> · '
+             '<span class="down-l">浅绿 −5%~0</span> · <span class="down-h">大绿 ≤−5%</span>（加粗）'
+             '<span class="mob-tip" style="margin-top:2px;color:#b45309">'
+             '← 表格可左右滑动，右侧为收盘 / 当日涨跌% / 市值 →</span></div>')
+    return ('<h2>%s</h2>' % title + note + cnote +
+            '<div class="tw"><table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th>族/行业</th>'
             '<th class="r">收盘</th><th class="r">当日涨跌%%</th><th class="r">市值亿</th></tr>'
-            '%s</table>' % ''.join(tr))
+            '%s</table></div>' % ''.join(tr))
 
 
 
@@ -1360,8 +1377,8 @@ def render(data_dir, narrative_path, out_path):
             body.append('<div class="note"><b>操作提示：</b>%s</div>' % narr['summary'])
     if SHOW_MARKET_TOP5:
         body.append(render_market_picks(picks_market))
-    body.append(render_khunter(market.get('khunter')))
     body.append(render_oversold_v2(market.get('oversold_v2')))
+    body.append(render_khunter(market.get('khunter')))
     body.append(render_foot(narr))
 
     doc = ('<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n'
