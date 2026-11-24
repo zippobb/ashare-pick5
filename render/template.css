@@ -74,6 +74,8 @@ td.r,th.r{text-align:right}
 .tag.cq-dull{background:#f9fafb;color:#6b7280;border-color:#e5e7eb}
 .tag.cq-na{background:#fff;color:#9ca3af;border-color:#eee;border-style:dashed}
 .tag.cq-yao{background:#fdf4ff;color:#a21caf;border-color:#f0abfc;font-weight:700}
+/* 2026-11-24：低置信 / 前后半不一致的股性标签用虚线边区分 */
+.tag.cq-wk{border-style:dashed}
 .pick-bd{padding:14px 18px 16px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:760px){.grid2{grid-template-columns:1fr}}

@@ -110,13 +110,16 @@ def _load_aux(name, primary):
 
 
 def _norm_char(r):
-    """精简副本（c/q/r/ub/db/e/s）→ 渲染字段名；完整版原样返回。"""
+    """精简副本（c/q/r/ub/db/e/s/f/rn/lc/sh/cf）→ 渲染字段名；完整版原样返回。"""
     if 'quad' in r or 'c' not in r:
         return r
     return {'code': r.get('c'), 'quad': r.get('q') or '',
             'corr': r.get('r') or 0, 'up_beta': r.get('ub') or 0,
             'dn_beta': r.get('db') or 0, 'e': r.get('e') or 0,
-            'stable': bool(r.get('s'))}
+            'stable': bool(r.get('s')),
+            'ref': r.get('f') or 'fam', 'ref_name': r.get('rn') or '',
+            'lowconf': bool(r.get('lc')), 'short': bool(r.get('sh')),
+            'corr_fam': r.get('cf')}
 
 
 def char_of(code):
@@ -167,7 +170,11 @@ def yao_of(code):
 
 
 def char_tag(code):
-    """股性标签：优=跟涨不跟跌 / 中=跟涨也跟跌 / 差=跟跌不跟涨 / 钝=都不跟。纯展示。"""
+    """股性标签：优=跟涨不跟跌 / 中=跟涨也跟跌 / 差=跟跌不跟涨 / 钝=都不跟。纯展示。
+
+    2026-11-24 起参照物分级（族 → 大方向 → 行业 → 全市场等权），标签含义统一为
+    「相对最相关的那一组」，具体参照写进 title；低置信/不稳定加虚线边框。
+    """
     r = char_of(code)
     y = yao_of(code)
     if not r and y:
@@ -179,15 +186,37 @@ def char_tag(code):
         return '<span class="tag cq cq-na" title="无股性标签（未评级或不在族表）">—</span>'
 
     q = r.get('quad') or ''
-    if q.startswith('弱相关'):
-        cls, label = 'cq-na', '不评'
-        tip = '族相关性 %.2f < 0.40，族归属可疑或独立行情，不评级' % (r.get('corr') or 0)
+    if q.startswith('上市不足'):
+        return '<span class="tag cq cq-na" title="上市不满 120 个交易日或长期停牌，样本不足，不评级">—</span>'
+    ref = r.get('ref') or 'fam'
+    rn = r.get('ref_name') or ''
+    if ref == 'dir':
+        ref_txt = '参照=大方向「%s」' % rn
+    elif ref == 'ind':
+        ref_txt = '参照=行业「%s」（族相关不足 0.40）' % rn
+    elif ref == 'mkt':
+        ref_txt = '参照=全市场等权（无题材归属）'
     else:
-        cls, label = _CHAR_CLS.get(q, 'cq-na'), q
-        tip = ('股性四象限（族内 500 日）：优=跟涨不跟跌，中=跟涨也跟跌，差=跟跌不跟涨，钝=都不跟；'
-               'up_beta=%.2f dn_beta=%.2f 跟随度=%.2f 族相关=%.2f 前后半一致=%s'
-               % (r.get('up_beta') or 0, r.get('dn_beta') or 0, r.get('e') or 0,
-                  r.get('corr') or 0, '是' if r.get('stable') else '否'))
+        ref_txt = '族内'
+
+    if q.startswith('弱相关') or q.startswith('独立'):
+        tip = ('%s；与最相关的参照也只有 %.2f < 0.15，跟谁都不像（独立行情），不评级'
+               % (ref_txt, r.get('corr') or 0))
+        return '<span class="tag cq cq-na" title="%s">不评</span>' % esc(tip)
+
+    cls, label = _CHAR_CLS.get(q, 'cq-na'), q
+    tip = ('股性四象限（500 日，%s）：优=跟涨不跟跌，中=跟涨也跟跌，差=跟跌不跟涨，钝=都不跟；'
+           'up_beta=%.2f dn_beta=%.2f 跟随度=%.2f 相关=%.2f 前后半一致=%s'
+           % (ref_txt, r.get('up_beta') or 0, r.get('dn_beta') or 0, r.get('e') or 0,
+              r.get('corr') or 0, '是' if r.get('stable') else '否'))
+    weak = r.get('lowconf')
+    if not r.get('stable') and q in ('优', '差'):
+        tip += '；注意：优/差两档前后半一致性低，属弱结论'
+        weak = True
+    if r.get('short'):
+        tip += '；上市不满 500 日，按实际可用天数算'
+    if weak:
+        cls += ' cq-wk'
     return '<span class="tag cq %s" title="%s">%s</span>' % (cls, esc(tip), esc(label))
 
 
@@ -1211,11 +1240,13 @@ def render_foot(narr):
             '<b>位置60</b>（60日价格位置）=（今收 − 60日最低）÷（60日最高 − 60日最低）×100：'
             '100 = 创 60 日新高，0 = 60 日最低。它衡量股价在近 60 日箱体里的相对位置，'
             '不是「最近涨了多少」。<br>'
-            '<b>股性标签</b>（族内 500 日）：<b>优</b>=跟涨不跟跌、<b>中</b>=跟涨也跟跌、'
-            '<b>差</b>=跟跌不跟涨、<b>钝</b>=都不跟（族涨 1%% 个股涨幅不足 0.8%% 视为不跟）；'
-            '族相关性 &lt;0.40 标「不评」。<b>纯标签：不参与打分、不影响排序、不构成推荐</b>；'
-            '其中「涨多还是跌多」这一维前后半窗口一致率仅 13~17%%（约等于随机），'
-            '只作当期状态参考，不作长期特性。<br>'
+            '<b>股性标签</b>（500 个交易日，每月初重算）：<b>优</b>=跟涨不跟跌、<b>中</b>=跟涨也跟跌、'
+            '<b>差</b>=跟跌不跟涨、<b>钝</b>=都不跟（参照组涨 1%% 而个股涨幅不足 0.8%% 即视为不跟）。'
+            '参照组按「跟谁最像」分级取：与所属细分族相关系数 ≥0.40 就按<b>族内</b>算；'
+            '不足 0.40 或没有题材归属时，依次在<b>大方向 / 行业 / 全市场等权</b>里取最相关的一组，'
+            '具体参照写在鼠标悬停提示里。最相关仍 &lt;0.15、或上市不满 120 个交易日 → 标「不评」。'
+            '标签带<b>虚线边框</b>＝相关系数偏低或前后半窗口不一致（优/差两档尤其不稳），只作当期状态参考。'
+            '<b>纯标签：不参与打分、不影响排序、不构成推荐</b>。<br>'
             '公式与阈值为实验参数，未做历史回测，不保证未来有效。</div>'
             % (narr.get('foot') or ''))
 
