@@ -1000,19 +1000,16 @@ def render_pool_hits(market, pool):
             label = (r.get('theme') or '—') + ('（行业）' if src in ('行业兜底', '生效行业') else '')
             tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td><td>%s</td>'
                       '<td class="r mono">%s</td><td class="r mono %s">%s</td>'
-                      '<td class="r mono">%s</td><td class="r mono">%s</td>'
-                      '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
+                      '<td class="r mono">%s</td></tr>'
                       % (esc(_ts_code(r.get('ts_code') or r.get('code'))[:6]),
                          esc(r.get('name')), char_tag(r.get('ts_code') or r.get('code')),
                          esc(label), esc(r.get('close')),
-                         pct_cls(r.get('chg')), pct_txt(r.get('chg')), esc(r.get('mv')),
-                         esc(r.get('amp20')), esc(r.get('vol20')), esc(r.get('amt_pct'))))
+                         pct_cls(r.get('chg')), pct_txt(r.get('chg')), esc(r.get('mv'))))
         out.append('<div class="sub" style="margin:14px 0 6px"><b>超跌反弹 v2 命中（%d 只）</b>'
                    '（C1 腰斩 + C3 反弹上限 + KDJ 存在型底背离，'
                    '再取 AMP20 / VOL20 / 成交额分位 各最低 50%% 的交集）</div>' % len(ov_rows))
         out.append('<table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th class="r">收盘</th>'
-                   '<th class="r">当日%%</th><th class="r">市值亿</th><th class="r">AMP20</th>'
-                   '<th class="r">VOL20</th><th class="r">额分位</th></tr>%s</table>' % ''.join(tr))
+                   '<th class="r">当日%%</th><th class="r">市值亿</th></tr>%s</table>' % ''.join(tr))
     if not ov_rows:
         out.append('<div class="note">今日观察池内无超跌反弹 v2 命中。</div>')
     both = ({_ts_code(r.get('ts_code') or r.get('code')) for r in kh_rows}
