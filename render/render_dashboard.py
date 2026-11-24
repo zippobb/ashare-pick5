@@ -78,6 +78,37 @@ def _load_first(paths):
     return {}
 
 
+_REMOTE_DEAD = False
+
+
+def _remote_json(name):
+    """最终兜底：从 GitHub raw 取 data/<name>。
+
+    云端渲染机只 curl 单个脚本文件、没有仓库目录，本地路径全不命中时会走到这里。
+    失败（断网/404）静默返回 {}，页面退化为「—」，绝不影响出图与发布。
+    国内 ECS 访问 raw 会被 reset，首次失败后置 _REMOTE_DEAD，避免二次重试再等一次超时。
+    """
+    global _REMOTE_DEAD
+    if _REMOTE_DEAD:
+        return {}
+    url = 'https://raw.githubusercontent.com/zippobb/ashare-pick5/main/data/' + name
+    try:
+        import urllib.request
+        with urllib.request.urlopen(url, timeout=8) as r:
+            return json.loads(r.read().decode('utf-8'))
+    except Exception:
+        _REMOTE_DEAD = True
+        return {}
+
+
+def _load_aux(name, primary):
+    """股性/妖数据的四级取数：ECS 原文件 → 仓库 data/ → 脚本同目录 → GitHub raw。"""
+    d = _load_first([primary,
+                     os.path.join(DATA_DIR, name),
+                     os.path.join(os.path.dirname(os.path.abspath(__file__)), name)])
+    return d or _remote_json(name)
+
+
 def _norm_char(r):
     """精简副本（c/q/r/ub/db/e/s）→ 渲染字段名；完整版原样返回。"""
     if 'quad' in r or 'c' not in r:
@@ -96,7 +127,7 @@ def char_of(code):
     global _CHAR_MAP
     if _CHAR_MAP is None:
         _CHAR_MAP = {}
-        d = _load_first([CHAR_QUAD_JSON, os.path.join(DATA_DIR, 'char_latest.json')])
+        d = _load_aux('char_latest.json', CHAR_QUAD_JSON)
         for _r in (d.get('stocks') or []):
             _r = _norm_char(_r)
             _c = _r.get('code') or ''
@@ -125,7 +156,7 @@ def yao_of(code):
     global _YAO_MAP
     if _YAO_MAP is None:
         _YAO_MAP = {}
-        _d = _load_first([YAO_JSON, os.path.join(DATA_DIR, 'yao_latest.json')])
+        _d = _load_aux('yao_latest.json', YAO_JSON)
         for _r in (_d.get('stocks') or []):
             _r = _norm_yao(_r)
             _c = _r.get('code') or ''
