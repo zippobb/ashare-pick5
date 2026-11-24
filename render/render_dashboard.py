@@ -177,11 +177,18 @@ def char_tag(code):
     """
     r = char_of(code)
     y = yao_of(code)
-    if not r and y:
+    if y:
+        # 妖优先于四象限：2026-11-24 起无族股也会拿到「全市场等权」参照的四象限，
+        # 若仍按「无标签才显示妖」，54 只妖会全部被四象限吞掉。妖名单本身只含无族股。
+        _q = (r or {}).get('quad') or ''
+        _extra = ''
+        if _q and not _q.startswith('上市不足') and not _q.startswith('独立'):
+            _extra = ('；同时按全市场等权参照的四象限为「%s」（up_beta %.2f dn_beta %.2f 相关 %.2f）'
+                      % (_q, r.get('up_beta') or 0, r.get('dn_beta') or 0, r.get('corr') or 0))
         return ('<span class="tag cq cq-yao" title="妖：无族 + 250日内曾出现20日涨%+.1f%%、跑赢市场%+.1f%%（%s，行业=%s）'
-                '——纯资金炒作、无板块归属，不进打分">妖</span>'
+                '——纯资金炒作、无板块归属，不进打分%s">妖</span>'
                 % (y.get('peak_r20') or 0, y.get('peak_ex20') or 0,
-                   y.get('peak_date') or '-', esc(y.get('industry_l3') or '-')))
+                   y.get('peak_date') or '-', esc(y.get('industry_l3') or '-'), _extra))
     if not r:
         return '<span class="tag cq cq-na" title="无股性标签（未评级或不在族表）">—</span>'
 
