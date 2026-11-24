@@ -96,7 +96,7 @@ https://github.com/settings/personal-access-tokens/new?name=pick5-cloud-publish&
 - https://raw.githubusercontent.com/zippobb/ashare-pick5/main/render/render_dashboard.py
 - https://raw.githubusercontent.com/zippobb/ashare-pick5/main/render/template.css
 - https://raw.githubusercontent.com/zippobb/ashare-pick5/main/data/char_latest.json
-  （股性四象限精简副本，约 3727 只，282 KB）
+  （股性四象限精简副本，约 5030 只，575 KB；2026-11-24 起参照物分级，每月 1 日重算）
 - https://raw.githubusercontent.com/zippobb/ashare-pick5/main/data/yao_latest.json
   （妖名单精简副本，约 54 只）
   ↑ 后两个是**纯展示用的股性/妖数据**，只影响股票名后面那个「优/中/差/钝/妖」小标签。
