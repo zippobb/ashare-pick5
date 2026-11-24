@@ -33,9 +33,9 @@ h3{font-size:15px;margin:0 0 8px}
 .up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--flat)}
 /* 涨跌幅四档（2026-11-25 用户指令）：|v|≥5% = 大红/大绿（加粗+淡底，不占布局），<5% = 浅红/浅绿 */
 .up-l{color:#d9545f}
-.up-h{color:#a80f18;font-weight:700;border-radius:3px;box-shadow:0 0 0 3px #fdeaea}
+.up-h{color:#a80f18;font-weight:700}
 .down-l{color:#3f9d75}
-.down-h{color:#056b39;font-weight:700;border-radius:3px;box-shadow:0 0 0 3px #e9f6ef}
+.down-h{color:#056b39;font-weight:700}
 .mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 
 .alert{background:var(--warnbg);border:1px solid var(--warnline);border-left:5px solid var(--warn);
