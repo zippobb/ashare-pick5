@@ -1524,6 +1524,20 @@ def main():
             market['oversold_v2'] = _ov
     except Exception:
         pass
+    # 破底翻候选（手册 §6.60；2026-11-25 用户裁决「只要涨幅≥3%」）
+    # 独立区块：不进打分、不进 Top5、不改变超跌反弹 v2；文件缺失或日期不符则安全降级。
+    try:
+        import json as _json_lb
+        _lb = _json_lb.load(open('/opt/bt/lbc_latest.json', encoding='utf-8'))
+        if _lb.get('trade_date') == want:
+            _ntn = globals().get('norm_theme_name')
+            if _ntn:
+                for _r in (_lb.get('rows') or []):
+                    if isinstance(_r.get('theme'), str):
+                        _r['theme'] = _ntn(_r['theme'])
+            market['lbc'] = _lb
+    except Exception:
+        pass
     market['legs'] = {
         'pool': {'candidate_mode': _cand_mode, 'n_scored': len(rows),
                  'top5': picks, 'top5_out_pool': sum(1 for r in picks if r.get('in_pool') is False)},

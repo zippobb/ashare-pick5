@@ -24,6 +24,8 @@ WEEK = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 SHOW_POOL_TOP5 = False
 SHOW_MARKET_TOP5 = False
 # 2026-11-17 用户指令：不再做池内选股，池内只做策略命中标记（见 render_pool_hits）。
+# 破底翻候选区块最多列多少只（暴跌次日会成百上千只同时命中，全列会拖垮手机端）。
+LBC_SHOW_MAX = 40
 
 
 # ---------- 工具 ----------
@@ -1297,6 +1299,63 @@ def render_oversold_v2(ov):
 
 
 
+def render_lbc(lb):
+    """破底翻候选（深跌次日低开高走，手册 §6.60）。数据来自 market.json 的 lbc 字段。
+
+    2026-11-25 用户裁决：判据固定为 C0 六条 + 当日涨幅 ≥3%。
+    独立区块：不进打分、不进 Top5、不改变超跌反弹 v2；命中 0 只时整块不显示（脉冲型信号）。
+    """
+    if not lb or not lb.get('rows'):
+        return ''
+    rows = sorted(lb.get('rows') or [], key=lambda r: -(float(r.get('chg') or 0)))
+    total = len(rows)
+    shown = rows[:LBC_SHOW_MAX]
+    tr = []
+    for r in shown:
+        theme = r.get('theme') or '—'
+        src = r.get('theme_src') or '无'
+        label = theme + '（行业）' if src in ('行业兜底', '生效行业') else theme
+        td = '<td title="题材来源：%s">%s</td>' % (esc(src), esc(label))
+        fam = r.get('fam') or '—'
+        dd = r.get('dd120')
+        dd_txt = ('%.1f' % float(dd)) if dd not in (None, '') else '—'
+        tr.append('<tr><td class="mono">%s</td><td>%s</td><td>%s</td>%s<td title="%s">%s</td>'
+                  '<td class="r mono %s">%+.2f</td><td class="r mono %s">%+.2f</td>'
+                  '<td class="r mono">%s</td><td class="r mono">%s</td>'
+                  '<td class="r mono">%s</td><td class="r mono">%s</td></tr>'
+                  % (esc(r.get('code')), esc(r.get('name')), char_tag(r.get('code')), td,
+                     esc(r.get('ind') or ''), esc(fam),
+                     pct_cls(float(r.get('prev_chg') or 0)), float(r.get('prev_chg') or 0),
+                     pct_cls(float(r.get('chg') or 0)), float(r.get('chg') or 0),
+                     esc(r.get('vr5') if r.get('vr5') not in (None, '') else '—'),
+                     esc(dd_txt), esc(r.get('close')), esc(r.get('mv'))))
+    cap = ''
+    if total > len(shown):
+        cap = ('<div class="sub" style="margin:6px 0"><b>今日命中 %d 只，本表只列涨幅前 %d 只</b>'
+               '（暴跌次日会成百上千只同时命中，全列会拖垮手机端）。</div>'
+               % (total, len(shown)))
+    note = ('<div class="note"><b>规则</b>（判据固定，全部只用 T 日及之前数据，无前视）：'
+            '<b>前日跌幅 ≤ −5%</b> → <b>低开</b>（今开 &lt; 昨收）→ <b>收复昨收</b>（今收 &gt; 昨收）→ '
+            '<b>破前日低</b>（今低 &lt; 昨低，先破后立）→ <b>VR5 ≥ 1.3</b> → '
+            '<b>深跌区</b>（今收 ≤ 近 120 日最高 × 0.75）→ <b>当日涨幅 ≥ 3%</b>。<br>'
+            '<b>VR5</b>＝当日成交量 ÷ 前 5 日平均成交量（1.3 即比常态放量三成，衡量承接力度）；'
+            '<b>回撤%</b>＝1 − 今收 ÷ 近 120 日最高，数值越大离前高越远（本判据只认回撤 ≥25% 的深跌票）。<br>'
+            '这就是「深跌 → 次日低开再破一次新低 → 放量收回昨收」的<b>破底翻</b>形态，'
+            '全样本 fwd2 超额 <b>+1.57%</b>（t 3.03、抽稀 t 2.09）、胜率 57.5%、中位 +0.91%、'
+            '日均约 5 只 —— 正确预期是 <b>2~3 日反弹的统计套利</b>，不是抓连板；'
+            '按「抓连板」用，5 只里亏 3~4 只是常态。<br>'
+            '已实测否决三条排除逻辑（不创阶段新低 / KDJ 的 J 翘头 / 板块内断层第一），均为负向，故不加。<br>'
+            '<b>独立区块</b>：按当日涨幅降序；不进打分、不进 Top5、不改变超跌反弹 v2；'
+            '命中 0 只时整块不显示（信号是脉冲型，多数日子 0~5 只）。</div>')
+    title = '五之二、破底翻候选（深跌次日低开高走，独立判据，%d 只 · %s）' % (
+        total, esc(lb.get('trade_date') or ''))
+    return ('<h2>%s</h2>' % title + note + cap +
+            '<div class="tw"><table><tr><th>代码</th><th>名称</th><th>股性</th><th>题材</th><th>族</th>'
+            '<th class="r">前日涨跌%%</th><th class="r">当日涨跌%%</th><th class="r">VR5</th>'
+            '<th class="r">回撤%%</th><th class="r">收盘</th><th class="r">市值亿</th></tr>'
+            '%s</table></div>' % ''.join(tr))
+
+
 def render_foot(narr):
     return ('<div class="disc">%s<br><br>本页由数据管线自动生成，'
             '仅供本人交易参考，不构成投资建议。'
@@ -1378,6 +1437,7 @@ def render(data_dir, narrative_path, out_path):
     if SHOW_MARKET_TOP5:
         body.append(render_market_picks(picks_market))
     body.append(render_oversold_v2(market.get('oversold_v2')))
+    body.append(render_lbc(market.get('lbc')))
     body.append(render_khunter(market.get('khunter')))
     body.append(render_foot(narr))
 
